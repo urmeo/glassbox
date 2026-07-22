@@ -1,4 +1,4 @@
-"""Command-line interface: ``glassbox run | validate | repair``."""
+"""Command-line interface: ``glassbox run | study | validate | repair``."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ import argparse
 import sys
 from typing import List, Optional, Sequence
 
-from . import analysis, report, scoring, validate as validate_mod
+from . import report, validate as validate_mod
 from . import repair as repair_mod
-from .judge import SimulatedJudge
-from .readers import build_reader, build_readers
+from .readers import build_reader
 from .readers._http import MissingKeyError
 from .render import RenderError
 from .schema import Scenario, load_all_scenarios
+from .studies import StudyConfig, StudyError, StudyResult, load_study, run_study
 
 
 def _select_scenarios(spec: Optional[str]) -> List[Scenario]:
@@ -36,23 +36,19 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
-def cmd_run(args: argparse.Namespace) -> int:
-    scenarios = _select_scenarios(args.scenarios)
-    readers = build_readers(args.readers.split(","))
+def _run_config(config: StudyConfig, out_dir: str) -> StudyResult:
     try:
-        results = scoring.read_all(scenarios, readers, skip_render=args.skip_render,
-                                   out_dir=args.out)
+        return run_study(config, out_dir)
     except MissingKeyError as exc:
         raise SystemExit("cannot run a real reader: %s" % exc)
     except RenderError as exc:
         raise SystemExit("rendering failed: %s\n(try --skip-render to run without a browser)" % exc)
+    except StudyError as exc:
+        raise SystemExit("study error: %s" % exc)
 
-    book = scoring.ScoreBook(results)
-    judge = SimulatedJudge()
-    h1 = analysis.analyze_h1(book, scenarios, judge)
-    cross = analysis.analyze_cross_family(book, scenarios, judge)
-    paths = report.write_run(args.out, scenarios, results, book, h1, cross, args.skip_render)
 
+def _print_summary(result: StudyResult) -> None:
+    book, h1, cross, paths = result.book, result.h1, result.cross, result.paths
     print("readers: %s" % ", ".join(book.readers))
     if h1.simulated:
         print("(simulated readers — a demonstration, not evidence about real readers)")
@@ -70,6 +66,25 @@ def cmd_run(args: argparse.Namespace) -> int:
     else:
         print("cross-family: 1 family only — needs >=2 for a cross-family result")
     print("wrote %s and %s" % (paths["report"], paths["results"]))
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    config = StudyConfig(
+        id="adhoc", description="ad-hoc CLI run",
+        readers=args.readers.split(","),
+        scenarios=args.scenarios.split(",") if args.scenarios else None,
+        replicates=args.replicates, skip_render=args.skip_render)
+    _print_summary(_run_config(config, args.out))
+    return 0
+
+
+def cmd_study(args: argparse.Namespace) -> int:
+    try:
+        config = load_study(args.config)
+    except (StudyError, OSError) as exc:
+        raise SystemExit("cannot load study %r: %s" % (args.config, exc))
+    print("study: %s — %s" % (config.id, config.description))
+    _print_summary(_run_config(config, args.out))
     return 0
 
 
@@ -113,10 +128,17 @@ def build_parser() -> argparse.ArgumentParser:
                        help="comma-separated reader specs (default: simulated)")
     p_run.add_argument("--scenarios", default=None,
                        help="comma-separated scenario ids (default: all)")
+    p_run.add_argument("--replicates", type=int, default=1,
+                       help="answers per question per reader (default: 1)")
     p_run.add_argument("--skip-render", action="store_true",
                        help="skip PNG rendering; readers use the spec/text view")
     p_run.add_argument("--out", default="runs/run", help="output directory")
     p_run.set_defaults(func=cmd_run)
+
+    p_study = sub.add_parser("study", help="run a study defined by a JSON config file")
+    p_study.add_argument("--config", required=True, help="path to a study config JSON")
+    p_study.add_argument("--out", default="runs/study", help="output directory")
+    p_study.set_defaults(func=cmd_study)
 
     p_val = sub.add_parser("validate", help="recompute every answer key from source")
     p_val.set_defaults(func=cmd_validate)

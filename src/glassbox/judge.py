@@ -64,6 +64,13 @@ class SimulatedJudge(Judge):
         return max(0.0, min(1.0, score))
 
 
+def build_judge(spec: str) -> Judge:
+    """Construct a judge from a spec string. ``polish`` is the deterministic v1 judge."""
+    if spec in ("polish", "simulated", "simulated:polish"):
+        return SimulatedJudge()
+    raise ValueError("unknown judge %r (have: polish)" % spec)
+
+
 def judge_all(judge: Judge, scenario: Scenario,
               presentations: Sequence[Presentation]) -> List[Preference]:
     """Score a set of presentations for one scenario."""

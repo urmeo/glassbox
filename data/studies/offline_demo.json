@@ -1,0 +1,10 @@
+{
+  "id": "offline_demo",
+  "description": "Offline H1 demonstration: all scenarios, the three simulated readers, the three interfaces under test.",
+  "readers": ["simulated"],
+  "scenarios": null,
+  "interfaces": ["cards", "table", "annotated"],
+  "replicates": 1,
+  "judge": "polish",
+  "skip_render": true
+}

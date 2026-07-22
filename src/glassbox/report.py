@@ -38,8 +38,8 @@ def _scenario_hash(scenario: Scenario) -> str:
 
 
 def run_metadata(scenarios: Sequence[Scenario], reader_names: Sequence[str],
-                 skip_render: bool) -> Dict[str, Any]:
-    return {
+                 skip_render: bool, study: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    meta = {
         "glassbox_version": __version__,
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -50,6 +50,9 @@ def run_metadata(scenarios: Sequence[Scenario], reader_names: Sequence[str],
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "argv": " ".join(sys.argv),
     }
+    if study is not None:
+        meta["study"] = study
+    return meta
 
 
 def _pct(x: float) -> str:
@@ -60,7 +63,7 @@ def _pct(x: float) -> str:
 
 def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResult],
                   book: ScoreBook, h1: H1Analysis, cross: CrossFamilyAnalysis,
-                  skip_render: bool) -> Dict[str, Any]:
+                  skip_render: bool, study: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     metrics: Dict[str, Any] = {}
     scen_h1 = {s.scenario_id: s for s in h1.scenarios}
     for sid in book.scenarios:
@@ -89,7 +92,7 @@ def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResul
             },
         }
     return {
-        "meta": run_metadata(scenarios, book.readers, skip_render),
+        "meta": run_metadata(scenarios, book.readers, skip_render, study),
         "per_question": [r.__dict__ for r in results],
         "metrics": metrics,
         "h1_summary": {
@@ -191,12 +194,14 @@ def render_report_md(book: ScoreBook, h1: H1Analysis,
 
 def write_run(out_dir: str, scenarios: Sequence[Scenario],
               results: Sequence[QuestionResult], book: ScoreBook, h1: H1Analysis,
-              cross: CrossFamilyAnalysis, skip_render: bool) -> Dict[str, str]:
+              cross: CrossFamilyAnalysis, skip_render: bool,
+              study: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
     os.makedirs(out_dir, exist_ok=True)
     results_path = os.path.join(out_dir, "results.json")
     report_path = os.path.join(out_dir, "report.md")
     with open(results_path, "w", encoding="utf-8") as fh:
-        json.dump(build_results(scenarios, results, book, h1, cross, skip_render), fh, indent=2)
+        json.dump(build_results(scenarios, results, book, h1, cross, skip_render, study),
+                  fh, indent=2)
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_report_md(book, h1, cross))
     return {"results": results_path, "report": report_path}
