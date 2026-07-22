@@ -9,7 +9,7 @@ description = "A benchmark that measures whether a generated interface conveys u
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "urme-b" }]
+authors = [{ name = "Urme" }]
 keywords = [
     "benchmark", "generative-ui", "comprehension", "vision-language-models",
     "evaluation", "llm", "human-ai-interaction", "reproducible-research",
