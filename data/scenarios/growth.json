@@ -1,0 +1,66 @@
+{
+  "id": "growth",
+  "title": "Regional revenue, Q1 to Q4",
+  "domain": "quantitative charts",
+  "description": "Quarterly revenue for four regions, in thousands of dollars. A bar chart of the latest quarter shows how big each region is now, but the tallest bar is not the region that grew the most, and the biggest dollar gain is not the biggest percentage gain.",
+  "data": {
+    "unit": "$k",
+    "value_label": "Q1 to Q4 growth",
+    "items": [
+      { "id": "North", "label": "North", "start": 200, "end": 260 },
+      { "id": "South", "label": "South", "start": 50, "end": 95 },
+      { "id": "East", "label": "East", "start": 300, "end": 345 },
+      { "id": "West", "label": "West", "start": 120, "end": 185 }
+    ],
+    "derived": {
+      "growth": "end - start",
+      "growth_pct": "(end - start) / start * 100"
+    },
+    "presentation": {
+      "primary_metric": "growth",
+      "primary_extreme": "argmax",
+      "headline_field": "end",
+      "cards_fields": [],
+      "detail_fields": ["start", "end"]
+    }
+  },
+  "questions": [
+    {
+      "id": "biggest_dollar_gain",
+      "stem": "Which region's revenue grew the most in absolute dollars from Q1 to Q4?",
+      "compute": { "op": "argmax", "field": "growth" },
+      "choices": [
+        { "id": "n", "text": "North", "value": "North" },
+        { "id": "s", "text": "South", "value": "South" },
+        { "id": "e", "text": "East", "value": "East" },
+        { "id": "w", "text": "West", "value": "West" }
+      ],
+      "answer": "w"
+    },
+    {
+      "id": "biggest_percent_gain",
+      "stem": "Which region grew the most in percentage terms from Q1 to Q4?",
+      "compute": { "op": "argmax", "field": "growth_pct" },
+      "choices": [
+        { "id": "n", "text": "North", "value": "North" },
+        { "id": "s", "text": "South", "value": "South" },
+        { "id": "e", "text": "East", "value": "East" },
+        { "id": "w", "text": "West", "value": "West" }
+      ],
+      "answer": "s"
+    },
+    {
+      "id": "count_gain_over_50",
+      "stem": "How many regions grew by more than $50k from Q1 to Q4?",
+      "compute": { "op": "count_gt", "field": "growth", "threshold": 50 },
+      "choices": [
+        { "id": "n0", "text": "0", "value": 0 },
+        { "id": "n1", "text": "1", "value": 1 },
+        { "id": "n2", "text": "2", "value": 2 },
+        { "id": "n3", "text": "3", "value": 3 },
+        { "id": "n4", "text": "4", "value": 4 }
+      ],
+      "answer": "n2"
+    }
+  ]
+}

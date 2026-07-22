@@ -1,0 +1,82 @@
+{
+  "id": "plans",
+  "title": "Three phone plans",
+  "domain": "choosing between options",
+  "description": "Three phone plans, each advertised by its headline monthly price. The real cost depends on data overage: for someone using 8 GB every month, a plan with a low base price but a small data allowance and steep overage can end up the most expensive over two years.",
+  "data": {
+    "unit": "$",
+    "value_label": "cost over two years",
+    "items": [
+      {
+        "id": "X",
+        "label": "Plan X (Basic)",
+        "monthly_fee": 25,
+        "included_gb": 2,
+        "overage_per_gb": 8,
+        "usage_gb": 8
+      },
+      {
+        "id": "Y",
+        "label": "Plan Y (Plus)",
+        "monthly_fee": 45,
+        "included_gb": 6,
+        "overage_per_gb": 6,
+        "usage_gb": 8
+      },
+      {
+        "id": "Z",
+        "label": "Plan Z (Max)",
+        "monthly_fee": 55,
+        "included_gb": 5,
+        "overage_per_gb": 4,
+        "usage_gb": 8
+      }
+    ],
+    "derived": {
+      "cost_2yr": "(monthly_fee + (usage_gb - included_gb) * overage_per_gb) * 24"
+    },
+    "presentation": {
+      "primary_metric": "cost_2yr",
+      "primary_extreme": "argmin",
+      "headline_field": "monthly_fee",
+      "cards_fields": ["included_gb"],
+      "detail_fields": ["monthly_fee", "included_gb", "overage_per_gb", "usage_gb"]
+    }
+  },
+  "questions": [
+    {
+      "id": "cheapest_2yr",
+      "stem": "Using 8 GB of data every month, which plan costs the least over two years?",
+      "compute": { "op": "argmin", "field": "cost_2yr" },
+      "choices": [
+        { "id": "x", "text": "Plan X (Basic)", "value": "X" },
+        { "id": "y", "text": "Plan Y (Plus)", "value": "Y" },
+        { "id": "z", "text": "Plan Z (Max)", "value": "Z" }
+      ],
+      "answer": "y"
+    },
+    {
+      "id": "count_over_1500",
+      "stem": "At 8 GB per month, how many plans cost more than $1,500 over two years?",
+      "compute": { "op": "count_gt", "field": "cost_2yr", "threshold": 1500 },
+      "choices": [
+        { "id": "n0", "text": "0", "value": 0 },
+        { "id": "n1", "text": "1", "value": 1 },
+        { "id": "n2", "text": "2", "value": 2 },
+        { "id": "n3", "text": "3", "value": 3 }
+      ],
+      "answer": "n2"
+    },
+    {
+      "id": "most_expensive_2yr",
+      "stem": "Using 8 GB of data every month, which plan is the most expensive over two years?",
+      "compute": { "op": "argmax", "field": "cost_2yr" },
+      "choices": [
+        { "id": "x", "text": "Plan X (Basic)", "value": "X" },
+        { "id": "y", "text": "Plan Y (Plus)", "value": "Y" },
+        { "id": "z", "text": "Plan Z (Max)", "value": "Z" }
+      ],
+      "answer": "x"
+    }
+  ]
+}

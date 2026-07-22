@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glassbox"
+version = "0.1.0"
+description = "A benchmark that measures whether a generated interface conveys understanding."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "urme-b" }]
+keywords = [
+    "benchmark", "generative-ui", "comprehension", "vision-language-models",
+    "evaluation", "llm", "human-ai-interaction", "reproducible-research",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# The core has zero runtime dependencies — it uses only the Python standard library.
+dependencies = []
+
+[project.scripts]
+glassbox = "glassbox.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
