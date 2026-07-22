@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import List, Optional, Sequence
 
-from . import report, validate as validate_mod
+from . import report, reward as reward_mod, validate as validate_mod
 from . import repair as repair_mod
 from .anchor import AnchorError, load_anchor_set, run_anchor
 from .readers import build_reader, build_readers
@@ -14,6 +14,7 @@ from .readers._http import MissingKeyError
 from .render import RenderError
 from .schema import Scenario, load_all_scenarios
 from .studies import StudyConfig, StudyError, StudyResult, load_study, run_study
+from .training import TrainingConfigError, load_training_config, validate_training_config
 
 
 def _select_scenarios(spec: Optional[str]) -> List[Scenario]:
@@ -86,6 +87,39 @@ def cmd_study(args: argparse.Namespace) -> int:
         raise SystemExit("cannot load study %r: %s" % (args.config, exc))
     print("study: %s — %s" % (config.id, config.description))
     _print_summary(_run_config(config, args.out))
+    return 0
+
+
+def cmd_optimize(args: argparse.Namespace) -> int:
+    scenarios = _select_scenarios(args.scenarios)
+    readers = build_readers(args.readers.split(","))
+    try:
+        ev = reward_mod.evaluate_generator(scenarios, readers, skip_render=args.skip_render)
+    except MissingKeyError as exc:
+        raise SystemExit("cannot run a real reader: %s" % exc)
+    except RenderError as exc:
+        raise SystemExit("rendering failed: %s\n(try --skip-render to run without a browser)" % exc)
+
+    training = None
+    if args.training:
+        try:
+            cfg = load_training_config(args.training)
+        except (TrainingConfigError, OSError) as exc:
+            raise SystemExit("cannot load training config %r: %s" % (args.training, exc))
+        training = {"id": cfg.id, "status": cfg.status,
+                    "errors": validate_training_config(cfg)}
+
+    paths = report.write_optimize(args.out, ev, [r.name for r in readers], training)
+    print("(offline search generator — proves the reward is optimizable, not a trained model)")
+    print("generator selected: %s" % (", ".join(sorted(ev.generator_features)) or "(none)"))
+    print("comprehension lift: generator %+.0f pts vs polished cards %+.0f pts"
+          % (ev.generator_reward * 100, ev.cards_reward * 100))
+    print("beats preference-tuned: %s · beats plain-text: %s"
+          % (ev.beats_preference_tuned, ev.beats_plaintext))
+    if training is not None:
+        print("training plan %s: %s"
+              % (training["id"], "ready" if not training["errors"] else "BLOCKED"))
+    print("wrote %s" % paths["report"])
     return 0
 
 
@@ -168,6 +202,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_study.add_argument("--config", required=True, help="path to a study config JSON")
     p_study.add_argument("--out", default="runs/study", help="output directory")
     p_study.set_defaults(func=cmd_study)
+
+    p_opt = sub.add_parser("optimize", help="M4: search the interface lattice for the highest comprehension reward")
+    p_opt.add_argument("--readers", default="simulated", help="comma-separated reader specs")
+    p_opt.add_argument("--scenarios", default=None, help="comma-separated scenario ids (default: all)")
+    p_opt.add_argument("--training", default=None, help="optional training config JSON to validate")
+    p_opt.add_argument("--skip-render", action="store_true", help="skip PNG rendering")
+    p_opt.add_argument("--out", default="runs/optimize", help="output directory")
+    p_opt.set_defaults(func=cmd_optimize)
 
     p_anchor = sub.add_parser("anchor", help="H3: correlate model vs human accuracy on an anchor set")
     p_anchor.add_argument("--set", required=True, help="path to an anchor set JSON")
