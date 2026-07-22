@@ -34,6 +34,14 @@ class TestTrainingConfig(unittest.TestCase):
         errors = training.validate_training_config(training.parse_training_config(bad))
         self.assertTrue(any("anti-gaming" in e or "exclude" in e for e in errors), errors)
 
+    def test_unresolvable_reader_family_rejected(self):
+        # A reader whose model family cannot be resolved must fail closed, so the
+        # anti-gaming exclusion cannot silently pass an unrecognized sibling slug.
+        bad = copy.deepcopy(VALID)
+        bad["reader_pool"] = ["openrouter:alibaba/vl-max"]
+        errors = training.validate_training_config(training.parse_training_config(bad))
+        self.assertTrue(any("resolve the model family" in e for e in errors), errors)
+
     def test_bad_reward_rejected(self):
         bad = copy.deepcopy(VALID)
         bad["reward"] = "preference"

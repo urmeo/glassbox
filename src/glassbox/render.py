@@ -61,7 +61,12 @@ def _screenshot(html: str, png_path: str) -> None:
             "--default-background-color=FFFFFFFF",
             "--screenshot=" + png_path, "file://" + html_path,
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except (subprocess.SubprocessError, OSError) as exc:
+            # a hang (TimeoutExpired) or exec failure (OSError) must surface as a
+            # RenderError so the CLI can degrade to --skip-render, not crash.
+            raise RenderError("chrome render failed: %s" % exc)
         if not os.path.isfile(png_path) or os.path.getsize(png_path) == 0:
             raise RenderError("chrome produced no screenshot: %s" % (result.stderr.strip()[:400]))
     finally:

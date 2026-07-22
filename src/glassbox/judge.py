@@ -105,7 +105,7 @@ class PairwiseJudge:
     simulated = False
 
     def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
-        """Return 'A' if the first interface wins, else 'B'."""
+        """Return 'A' if the first interface wins, 'B' if the second, 'tie' if neither."""
         raise NotImplementedError
 
 
@@ -143,8 +143,9 @@ class ApiPairwiseJudge(PairwiseJudge):
 
     def _prompt(self, a: Presentation, b: Presentation) -> str:
         from .prompts import load_prompt
-        return (load_prompt("judge_pairwise")
-                .replace("{a}", a.to_text()).replace("{b}", b.to_text()))
+        # Single pass so a literal "{b}" inside interface A's text is not re-substituted.
+        fields = {"a": a.to_text(), "b": b.to_text()}
+        return re.sub(r"\{(a|b)\}", lambda m: fields[m.group(1)], load_prompt("judge_pairwise"))
 
     def build_payload(self, a: Presentation, b: Presentation) -> Dict:
         text = self._prompt(a, b)
@@ -165,7 +166,9 @@ class ApiPairwiseJudge(PairwiseJudge):
             resp = post_json(_ENDPOINTS[self.family], {"authorization": "Bearer " + key},
                              self.build_payload(a, b))
             text = extract_text(resp)
-        return parse_ab(text) or "A"
+        # An unparseable reply is a tie, never a default win for A — otherwise a parse
+        # failure would systematically credit the positionally-earlier interface.
+        return parse_ab(text) or "tie"
 
 
 class PairwiseRatingJudge(Judge):
@@ -183,12 +186,18 @@ class PairwiseRatingJudge(Judge):
         if scenario.id in self._cache:
             return self._cache[scenario.id]
         pres = {v: interfaces.variant(scenario, v) for v in self._variants}
-        wins = {v: 0 for v in self._variants}
+        wins = {v: 0.0 for v in self._variants}
         for i in range(len(self._variants)):
             for j in range(i + 1, len(self._variants)):
                 va, vb = self._variants[i], self._variants[j]
                 winner = self._pw.compare(scenario, pres[va], pres[vb])
-                wins[va if winner == "A" else vb] += 1
+                if winner == "A":
+                    wins[va] += 1.0
+                elif winner == "B":
+                    wins[vb] += 1.0
+                else:  # a tie splits the point — no positional bias
+                    wins[va] += 0.5
+                    wins[vb] += 0.5
         k = len(self._variants)
         rates = {v: (wins[v] / (k - 1) if k > 1 else 0.0) for v in self._variants}
         self._cache[scenario.id] = rates

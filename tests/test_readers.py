@@ -42,6 +42,26 @@ class TestDeterminism(unittest.TestCase):
         self.assertEqual(len(answers), 1)
 
 
+class TestCarelessSlip(unittest.TestCase):
+    """The careless persona's defining behavior: slip on a close call, rescued by a highlight."""
+
+    def setUp(self):
+        self.loans = schema.load_all_scenarios()["loans"]
+        self.reader = build_reader("simulated:careless")
+        self.q = next(q for q in self.loans.questions if q.id == "cheapest_total")
+
+    def _answer(self, variant):
+        st = render.render(interfaces.variant(self.loans, variant), skip=True)
+        return self.reader.answer(self.loans, self.q, st).choice_id
+
+    def test_slips_to_runner_up_on_close_call_without_highlight(self):
+        # loans cheapest: true B vs A within 5% and the table shows no highlight.
+        self.assertEqual(self._answer("table"), "a")   # slip to the runner-up (wrong)
+
+    def test_highlight_of_true_extreme_rescues_the_slip(self):
+        self.assertEqual(self._answer("annotated"), "b")  # trusts the highlight (correct)
+
+
 class TestH1Fixture(unittest.TestCase):
     """The polished cards must transfer *less* understanding than plain data."""
 

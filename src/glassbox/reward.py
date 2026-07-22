@@ -96,7 +96,38 @@ def evaluate_generator(scenarios: Sequence[Scenario], readers: Sequence[Reader],
         beats_plaintext=best_reward > 0.0)
 
 
+# Map a reader spec to its underlying MODEL family (not its API family). Provider-locked
+# APIs are unambiguous; aggregators (openrouter) are resolved from the model slug. This is
+# a heuristic map — a production deployment would resolve against a real model registry.
+_SLUG_FAMILIES = {
+    "qwen": ("qwen",),
+    "anthropic": ("claude",),
+    "openai": ("gpt", "o1", "o3", "o4"),
+    "llama": ("llama",),
+    "gemini": ("gemini",),
+    "mistral": ("mistral", "mixtral"),
+    "deepseek": ("deepseek",),
+}
+
+
+def model_family(reader_spec: str) -> str:
+    """The generating model's family for a reader spec, or 'unknown' if unrecognized."""
+    provider, _, model = reader_spec.partition(":")
+    provider, model = provider.lower(), model.lower()
+    if provider in ("simulated", "anthropic", "openai"):
+        return provider  # provider-locked: the API fixes the model family
+    for family, tokens in _SLUG_FAMILIES.items():  # aggregator/bare slug: infer
+        if any(t in model for t in tokens):
+            return family
+    return "unknown"
+
+
 def pool_excludes_family(reader_specs: Sequence[str], generator_family: str) -> bool:
-    """True if no reader belongs to the generator's model family (anti-gaming)."""
-    fam = generator_family.lower()
-    return all(fam not in spec.lower() for spec in reader_specs)
+    """True if no reader resolves to the generator's model family (anti-gaming).
+
+    A substring check fails open when a sibling model is spelled differently; this
+    compares resolved families instead. Readers whose family cannot be resolved
+    ('unknown') are not treated as excluded here — ``validate_training_config`` rejects a
+    pool containing any unknown so the guard cannot silently pass an unrecognized slug."""
+    gf = generator_family.lower()
+    return all(model_family(spec) != gf for spec in reader_specs)

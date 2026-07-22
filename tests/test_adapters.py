@@ -1,7 +1,7 @@
 """Real-reader adapters — request shape and reply parsing, verified without network.
 
-Live calls are deferred to M2 (no keys in this environment). These tests pin the two
-wire contracts (D-0006): Anthropic raw base64 vs OpenAI-compatible data-URI, reply
+Live calls are deferred to a later phase (no keys in this environment). These tests pin
+the two wire contracts: Anthropic raw base64 vs OpenAI-compatible data-URI, reply
 extraction, choice parsing, key handling, and registry selection.
 """
 
@@ -99,6 +99,12 @@ class TestChoiceParsing(AdapterTestBase):
     def test_unparseable_is_none(self):
         self.assertIsNone(parse_choice("", self.q))
         self.assertIsNone(parse_choice("purple monkey dishwasher", self.q))
+
+    def test_verbose_reply_uses_the_concluding_letter(self):
+        # A reasoning reply concludes with its pick: "…Offer C vs B, I'd pick B" is B,
+        # not the first-mentioned C (which would silently mis-score a correct reader).
+        self.assertEqual(parse_choice("Comparing Offer C to B, I would pick B.", self.q), "b")
+        self.assertEqual(parse_choice("Between A and C, C is cheapest, so C.", self.q), "c")
 
     def test_skip_render_prompt_inlines_interface_text(self):
         stim = _spec_stimulus(self.loans)

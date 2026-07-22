@@ -111,6 +111,8 @@ def cmd_optimize(args: argparse.Namespace) -> int:
 
     paths = report.write_optimize(args.out, ev, [r.name for r in readers], training)
     print("(offline search generator — proves the reward is optimizable, not a trained model)")
+    if all(r.name.startswith("simulated:") for r in readers):
+        print("(simulated readers — the comprehension numbers come from designed fixtures, not evidence)")
     print("generator selected: %s" % (", ".join(sorted(ev.generator_features)) or "(none)"))
     print("comprehension lift: generator %+.0f pts vs polished cards %+.0f pts"
           % (ev.generator_reward * 100, ev.cards_reward * 100))

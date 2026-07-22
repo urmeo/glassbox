@@ -1,6 +1,8 @@
 """Report writers — results.json shape, report.md content, provenance."""
 
 import json
+import os
+import tempfile
 import unittest
 
 from glassbox import analysis, report, schema, scoring
@@ -39,6 +41,20 @@ class TestReport(unittest.TestCase):
         self.assertIn("Reversal", md)
         self.assertIn("comprehension vs preference", md)
         self.assertIn("Cross-family agreement", md)
+
+    def test_results_json_has_no_bare_nan(self):
+        # The single-family cross_family_agreement is undefined (nan); the written file
+        # must serialize it as null, not bare NaN (which strict JSON parsers reject).
+        with tempfile.TemporaryDirectory() as tmp:
+            report.write_run(tmp, self.scenarios, self.results, self.book, self.h1,
+                             self.cross, True)
+            raw = open(os.path.join(tmp, "results.json"), encoding="utf-8").read()
+        self.assertNotIn("NaN", raw)
+        self.assertNotIn("Infinity", raw)
+
+        def _reject(token):
+            raise ValueError("non-standard JSON constant: " + token)
+        json.loads(raw, parse_constant=_reject)  # strict parse must succeed
 
     def test_scenario_hash_stable(self):
         loans = schema.load_all_scenarios()["loans"]

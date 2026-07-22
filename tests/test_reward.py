@@ -40,6 +40,21 @@ class TestReward(unittest.TestCase):
         self.assertTrue(reward.pool_excludes_family(
             ["anthropic:claude-sonnet-5", "anthropic:claude-opus-4-8"], "qwen"))
 
+    def test_model_family_is_structured_not_substring(self):
+        self.assertEqual(reward.model_family("anthropic:claude-sonnet-5"), "anthropic")
+        self.assertEqual(reward.model_family("openrouter:qwen/qwen3-vl-8b-instruct"), "qwen")
+        self.assertEqual(reward.model_family("simulated:literal"), "simulated")
+        # a Qwen model under a non-'qwen' alias is 'unknown', not silently allowed
+        self.assertEqual(reward.model_family("openrouter:alibaba/vl-max"), "unknown")
+        # a claude model whose name contains 'qwen' is NOT false-flagged as qwen
+        self.assertEqual(reward.model_family("anthropic:claude-3-qwenish"), "anthropic")
+
+    def test_optimize_report_labels_simulated(self):
+        from glassbox import report as rp
+        ev = reward.evaluate_generator(self.scenarios, self.readers)
+        md = rp.render_optimize_md(ev, ["simulated:literal", "simulated:diligent"], None)
+        self.assertIn("Simulated readers only", md)
+
 
 if __name__ == "__main__":
     unittest.main()

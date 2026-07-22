@@ -4,8 +4,8 @@ import os
 import unittest
 
 from glassbox import analysis, interfaces, schema, scoring
-from glassbox.judge import (ApiPairwiseJudge, PairwiseRatingJudge, SimulatedPairwiseJudge,
-                            build_judge, parse_ab)
+from glassbox.judge import (ApiPairwiseJudge, PairwiseJudge, PairwiseRatingJudge,
+                            SimulatedPairwiseJudge, build_judge, parse_ab)
 from glassbox.readers import build_readers
 from glassbox.readers._http import MissingKeyError
 
@@ -37,6 +37,17 @@ class TestPairwise(unittest.TestCase):
 
     def test_build_judge_pairwise(self):
         self.assertIsInstance(build_judge("pairwise"), PairwiseRatingJudge)
+
+    def test_tie_splits_the_point_no_positional_bias(self):
+        class _TieJudge(PairwiseJudge):
+            simulated = True
+            def compare(self, scenario, a, b):
+                return "tie"
+        j = PairwiseRatingJudge(_TieJudge())
+        wr = {v: j.preference(self.loans, interfaces.variant(self.loans, v))
+              for v in ("cards", "table", "annotated")}
+        for v, rate in wr.items():
+            self.assertAlmostEqual(rate, 0.5, msg=v)  # all ties -> no variant favored
 
     def test_pairwise_preserves_divergence(self):
         scenarios = list(schema.load_all_scenarios().values())

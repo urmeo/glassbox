@@ -108,10 +108,12 @@ def parse_choice(reply: str, question: Question) -> Optional[str]:
     if m and m.group(1).upper() in letters:
         return question.choices[letters.index(m.group(1).upper())].id
 
-    # 3. Any standalone uppercase option letter elsewhere.
-    for mm in re.finditer(r"\b([A-Z])\b", text):
-        if mm.group(1) in letters:
-            return question.choices[letters.index(mm.group(1))].id
+    # 3. A standalone option letter elsewhere — prefer the LAST one. A reasoning reply
+    #    concludes with its pick, so "…Offer C's total vs B, I'd pick B" must resolve to
+    #    B, not the first-mentioned C (which would silently mis-score a correct reader).
+    hits = [mm.group(1) for mm in re.finditer(r"\b([A-Z])\b", text) if mm.group(1) in letters]
+    if hits:
+        return question.choices[letters.index(hits[-1])].id
 
     # 4. Fall back to matching the choice's own text (longest match wins).
     low = text.lower()

@@ -99,7 +99,9 @@ def parse_anchor_set(raw: Dict) -> AnchorSet:
             raise AnchorError("anchor item %s/%s needs human_accuracy in [0,1]" % (sid, qid))
         items.append(AnchorItem(scenario=sid, question=qid, human_accuracy=float(ha)))
 
-    is_fixture = bool(raw.get("is_fixture", "fixture" in source.lower()))
+    # Safe default: an unlabeled set is treated as a fixture (over-warns) rather than
+    # emitting an H3 claim with invented numbers. A real set must declare is_fixture: false.
+    is_fixture = bool(raw.get("is_fixture", True))
     return AnchorSet(id=raw["id"], source=source, note=raw.get("note", ""),
                      condition=condition, items=items, is_fixture=is_fixture)
 

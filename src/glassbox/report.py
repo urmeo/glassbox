@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import sys
@@ -32,6 +33,22 @@ SIMULATED_CAVEAT = (
     "divergence when one is present by construction; it is **not** evidence about real "
     "readers or real interfaces."
 )
+
+
+def _json_safe(obj: Any) -> Any:
+    """Recursively replace NaN/Infinity floats with None — bare NaN is invalid JSON
+    (RFC 8259) and a strict parser rejects it. Undefined correlations become null."""
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
+def _dump(payload: Any, fh) -> None:
+    json.dump(_json_safe(payload), fh, indent=2)
 
 
 def _scenario_hash(scenario: Scenario) -> str:
@@ -202,8 +219,7 @@ def write_run(out_dir: str, scenarios: Sequence[Scenario],
     results_path = os.path.join(out_dir, "results.json")
     report_path = os.path.join(out_dir, "report.md")
     with open(results_path, "w", encoding="utf-8") as fh:
-        json.dump(build_results(scenarios, results, book, h1, cross, skip_render, study),
-                  fh, indent=2)
+        _dump(build_results(scenarios, results, book, h1, cross, skip_render, study), fh)
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_report_md(book, h1, cross))
     return {"results": results_path, "report": report_path}
@@ -254,7 +270,7 @@ def write_repair(out_dir: str, result: RepairResult, scenario: Scenario,
                    "question": result.question_id, "converged": result.converged,
                    "turns_to_understanding": result.turns_to_understanding,
                    "turns": [t.__dict__ for t in result.turns]}
-        json.dump(payload, fh, indent=2)
+        _dump(payload, fh)
     return {"transcript": transcript_path, "repair": json_path}
 
 
@@ -280,6 +296,9 @@ def render_anchor_md(result: AnchorResult) -> str:
     lines.append("")
     if a.is_fixture:
         lines.append(ANCHOR_FIXTURE_CAVEAT)
+        lines.append("")
+    if result.readers and all(r.startswith("simulated:") for r in result.readers):
+        lines.append(SIMULATED_CAVEAT)  # model side is simulated, too
         lines.append("")
     lines.append("**Correlation (model vs human accuracy, %d items):** Spearman %s · "
                  "Pearson %s · Kendall %s." % (result.n_items, _corr(result.spearman),
@@ -308,14 +327,14 @@ def write_anchor(out_dir: str, result: AnchorResult) -> Dict[str, str]:
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_anchor_md(result))
     with open(json_path, "w", encoding="utf-8") as fh:
-        json.dump({
+        _dump({
             "anchor_id": result.anchor.id, "source": result.anchor.source,
             "is_fixture": result.anchor.is_fixture, "condition": result.anchor.condition,
             "readers": result.readers,
             "correlations": {"spearman": result.spearman, "pearson": result.pearson,
                              "kendall": result.kendall},
             "points": [p.__dict__ for p in result.points],
-        }, fh, indent=2)
+        }, fh)
     return {"report": report_path, "anchor": json_path}
 
 
@@ -336,6 +355,9 @@ def render_optimize_md(ev: EvalResult, readers: Sequence[str],
     lines.append("")
     lines.append(OPTIMIZE_CAVEAT)
     lines.append("")
+    if readers and all(r.startswith("simulated:") for r in readers):
+        lines.append(SIMULATED_CAVEAT)  # the reward numbers come from designed fixtures
+        lines.append("")
     lines.append("**Generator selected:** `%s`" % (", ".join(sorted(ev.generator_features)) or "(none)"))
     lines.append("")
     lines.append("| interface | comprehension lift |")
@@ -367,11 +389,11 @@ def write_optimize(out_dir: str, ev: EvalResult, readers: Sequence[str],
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_optimize_md(ev, readers, training))
     with open(json_path, "w", encoding="utf-8") as fh:
-        json.dump({
+        _dump({
             "generator_features": sorted(ev.generator_features),
             "generator_reward": ev.generator_reward, "cards_reward": ev.cards_reward,
             "beats_preference_tuned": ev.beats_preference_tuned,
             "beats_plaintext": ev.beats_plaintext, "readers": list(readers),
             "training": training,
-        }, fh, indent=2)
+        }, fh)
     return {"report": report_path, "optimize": json_path}

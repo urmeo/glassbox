@@ -14,7 +14,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from .reward import pool_excludes_family
+from .reward import model_family, pool_excludes_family
 
 _METHODS = {"sft", "grpo"}
 
@@ -77,4 +77,9 @@ def validate_training_config(config: TrainingConfig) -> List[str]:
         errors.append("reader pool must exclude the generator's family %r — a generator "
                       "must not be scored by a sibling model (anti-gaming)"
                       % config.generator_family)
+    unresolved = [r for r in config.reader_pool if model_family(r) == "unknown"]
+    if unresolved:
+        errors.append("cannot resolve the model family of reader(s) %s — use a recognized "
+                      "model slug so the anti-gaming exclusion can be verified (fail-closed)"
+                      % unresolved)
     return errors

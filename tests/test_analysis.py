@@ -12,7 +12,7 @@ try:
     from scipy.stats import kendalltau as _scipy_kendall
     from scipy.stats import pearsonr as _scipy_pearson
     HAVE_SCIPY = True
-except Exception:  # scipy is an optional cross-check only (D-0001)
+except Exception:  # scipy is an optional cross-check only (never a runtime dependency)
     HAVE_SCIPY = False
 
 
