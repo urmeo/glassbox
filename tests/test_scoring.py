@@ -3,7 +3,24 @@
 import unittest
 
 from glassbox import schema, scoring
-from glassbox.readers import build_readers
+from glassbox.readers import build_reader, build_readers
+from glassbox.readers.base import Answer, Reader
+
+
+class _FlakyReader(Reader):
+    """A synthetic reader that flips answers across calls — stands in for a
+    stochastic real reader so the replicate machinery can be tested offline."""
+    simulated = True
+    family = "synthetic"
+    name = "synthetic:flaky"
+
+    def __init__(self):
+        self._n = 0
+
+    def answer(self, scenario, question, stimulus):
+        self._n += 1
+        choice = question.choices[self._n % len(question.choices)]
+        return Answer(choice_id=choice.id, method="synthetic")
 
 
 class TestScoreBook(unittest.TestCase):
@@ -47,6 +64,33 @@ class TestScoreBook(unittest.TestCase):
         self.assertGreaterEqual(len(self.book.scenarios), 3)
         self.assertGreaterEqual(len(self.book.interface_variants()), 3)
         self.assertGreaterEqual(len(self.book.readers), 3)
+
+
+class TestReplicates(unittest.TestCase):
+    def setUp(self):
+        self.loans = schema.load_all_scenarios()["loans"]
+
+    def test_deterministic_reader_has_zero_spread(self):
+        book = scoring.ScoreBook(scoring.read_all(
+            [self.loans], [build_reader("simulated:literal")],
+            variants=["table"], skip_render=True, replicates=3))
+        self.assertEqual(book.replicate_count(), 3)
+        self.assertEqual(book.accuracy_std("simulated:literal", "loans", "table"), 0.0)
+        self.assertEqual(book.answer_stability("simulated:literal", "loans", "table"), 1.0)
+
+    def test_stochastic_reader_shows_spread(self):
+        book = scoring.ScoreBook(scoring.read_all(
+            [self.loans], [_FlakyReader()], variants=["table"],
+            skip_render=True, replicates=4))
+        self.assertEqual(book.replicate_count(), 4)
+        # A reader that flips answers is not perfectly stable.
+        self.assertLess(book.answer_stability("synthetic:flaky", "loans", "table"), 1.0)
+
+    def test_family_grouping(self):
+        book = scoring.ScoreBook(scoring.read_all(
+            [self.loans], build_readers(["simulated"]), variants=["table"], skip_render=True))
+        self.assertEqual(book.families(), ["simulated"])
+        self.assertEqual(len(book.readers_in_family("simulated")), 3)
 
 
 if __name__ == "__main__":
