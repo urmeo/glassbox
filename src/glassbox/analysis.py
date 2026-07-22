@@ -61,6 +61,43 @@ def spearman(xs: Sequence[float], ys: Sequence[float]) -> float:
     return _pearson(_fractional_ranks(xs), _fractional_ranks(ys))
 
 
+def pearson(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Pearson correlation."""
+    if len(xs) != len(ys):
+        raise ValueError("pearson needs equal-length sequences")
+    if len(xs) < 2:
+        return float("nan")
+    return _pearson(xs, ys)
+
+
+def kendall_tau(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Kendall's tau-b rank correlation (ties handled; matches scipy's default)."""
+    if len(xs) != len(ys):
+        raise ValueError("kendall needs equal-length sequences")
+    n = len(xs)
+    if n < 2:
+        return float("nan")
+    concordant = discordant = tx = ty = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            dx = xs[i] - xs[j]
+            dy = ys[i] - ys[j]
+            if dx == 0 and dy == 0:
+                continue          # tied in both — excluded from tau-b
+            if dx == 0:
+                tx += 1
+            elif dy == 0:
+                ty += 1
+            elif (dx > 0) == (dy > 0):
+                concordant += 1
+            else:
+                discordant += 1
+    denom = ((concordant + discordant + tx) * (concordant + discordant + ty)) ** 0.5
+    if denom == 0:
+        return float("nan")
+    return (concordant - discordant) / denom
+
+
 # --- H1 structures ----------------------------------------------------------
 
 @dataclass(frozen=True)

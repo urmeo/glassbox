@@ -9,6 +9,8 @@ from glassbox.readers import build_readers
 
 try:
     from scipy.stats import spearmanr as _scipy_spearman
+    from scipy.stats import kendalltau as _scipy_kendall
+    from scipy.stats import pearsonr as _scipy_pearson
     HAVE_SCIPY = True
 except Exception:  # scipy is an optional cross-check only (D-0001)
     HAVE_SCIPY = False
@@ -35,6 +37,18 @@ class TestSpearman(unittest.TestCase):
             mine = analysis.spearman(xs, ys)
             theirs = float(_scipy_spearman(xs, ys).statistic)
             self.assertAlmostEqual(mine, theirs, places=9, msg="xs=%s ys=%s" % (xs, ys))
+
+    @unittest.skipUnless(HAVE_SCIPY, "scipy not installed (optional cross-check)")
+    def test_kendall_and_pearson_match_scipy(self):
+        cases = [
+            ([0.1, 0.5, 0.9, 0.3, 0.6], [3.0, 2.0, 1.0, 4.0, 2.5]),
+            ([0.33, 0.67, 0.67, 0.67, 0.4], [0.45, 0.70, 0.62, 0.68, 0.40]),  # anchor-like, ties
+        ]
+        for xs, ys in cases:
+            self.assertAlmostEqual(analysis.kendall_tau(xs, ys),
+                                   float(_scipy_kendall(xs, ys).statistic), places=9)
+            self.assertAlmostEqual(analysis.pearson(xs, ys),
+                                   float(_scipy_pearson(xs, ys)[0]), places=9)
 
 
 class TestH1Analysis(unittest.TestCase):
