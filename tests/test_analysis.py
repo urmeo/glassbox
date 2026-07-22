@@ -1,6 +1,7 @@
 """H1 analysis — Spearman correctness and the divergence finding."""
 
 import unittest
+from dataclasses import replace
 
 from glassbox import analysis, schema, scoring
 from glassbox.judge import SimulatedJudge
@@ -59,6 +60,39 @@ class TestH1Analysis(unittest.TestCase):
     def test_preference_and_comprehension_disagree(self):
         # Weak-to-moderate correlation, never a perfect match.
         self.assertLess(self.report.mean_spearman, 0.99)
+
+
+class TestCrossFamily(unittest.TestCase):
+    """Cross-family logic, exercised by relabeling personas into two families."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scenarios = list(schema.load_all_scenarios().values())
+        results = scoring.read_all(cls.scenarios, build_readers(["simulated"]), skip_render=True)
+        mapping = {"simulated:literal": "famA", "simulated:diligent": "famA",
+                   "simulated:careless": "famB"}
+        relabeled = [replace(qr, reader_family=mapping[qr.reader]) for qr in results]
+        cls.book = scoring.ScoreBook(relabeled)
+        cls.cross = analysis.analyze_cross_family(cls.book, cls.scenarios, SimulatedJudge())
+
+    def test_two_families_detected(self):
+        self.assertEqual(self.cross.n_families, 2)
+        self.assertEqual(sorted(f.family for f in self.cross.families), ["famA", "famB"])
+
+    def test_reversal_holds_in_each_family(self):
+        for f in self.cross.families:
+            self.assertTrue(f.reversal_holds, "reversal missing in family %s" % f.family)
+
+    def test_divergence_survives_and_families_agree(self):
+        self.assertTrue(self.cross.survives_across_families)
+        self.assertGreater(self.cross.cross_family_agreement, 0.0)
+
+    def test_single_family_cannot_survive(self):
+        book = scoring.ScoreBook(scoring.read_all(
+            self.scenarios, build_readers(["simulated"]), skip_render=True))
+        cross = analysis.analyze_cross_family(book, self.scenarios, SimulatedJudge())
+        self.assertEqual(cross.n_families, 1)
+        self.assertFalse(cross.survives_across_families)  # needs >= 2 families
 
 
 if __name__ == "__main__":

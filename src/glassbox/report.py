@@ -15,10 +15,10 @@ import os
 import platform
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from . import __version__, interfaces
-from .analysis import H1Analysis
+from .analysis import CrossFamilyAnalysis, H1Analysis
 from .render import renderer_version
 from .repair import RepairResult
 from .schema import Question, Scenario
@@ -59,7 +59,8 @@ def _pct(x: float) -> str:
 # --- results.json -----------------------------------------------------------
 
 def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResult],
-                  book: ScoreBook, h1: H1Analysis, skip_render: bool) -> Dict[str, Any]:
+                  book: ScoreBook, h1: H1Analysis, cross: CrossFamilyAnalysis,
+                  skip_render: bool) -> Dict[str, Any]:
     metrics: Dict[str, Any] = {}
     scen_h1 = {s.scenario_id: s for s in h1.scenarios}
     for sid in book.scenarios:
@@ -96,12 +97,56 @@ def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResul
             "divergence_found": h1.divergence_found,
             "simulated": h1.simulated,
         },
+        "cross_family": {
+            "n_families": cross.n_families,
+            "families": [{"family": f.family, "readers": f.readers,
+                          "comp_lift": f.comp_lift, "reversal_holds": f.reversal_holds}
+                         for f in cross.families],
+            "preference": cross.preference,
+            "cross_family_agreement": cross.cross_family_agreement,
+            "survives_across_families": cross.survives_across_families,
+        },
     }
 
 
 # --- report.md --------------------------------------------------------------
 
-def render_report_md(book: ScoreBook, h1: H1Analysis) -> str:
+def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
+    lines: List[str] = ["## Cross-family agreement", ""]
+    if cross.n_families < 2:
+        fam = cross.families[0].family if cross.families else "none"
+        lines.append("Only **1** reader family (`%s`). Cross-family agreement needs ≥2 "
+                     "independent families — add real readers (M2, needs API keys). The "
+                     "reversal within this family: **%s**."
+                     % (fam, "holds" if cross.families and cross.families[0].reversal_holds
+                        else "not present"))
+        lines.append("")
+        return "\n".join(lines)
+
+    verdict = ("survives across families ✓" if cross.survives_across_families
+               else "does NOT survive across all families")
+    lines.append("Divergence **%s** · cross-family agreement (Spearman of comprehension "
+                 "rankings) = **%.2f** across %d families."
+                 % (verdict, cross.cross_family_agreement, cross.n_families))
+    lines.append("")
+    header = "| interface | preference | " + " | ".join(f.family for f in cross.families) + " |"
+    lines.append(header)
+    lines.append("|---|---:|" + "---:|" * cross.n_families)
+    for v in cross.interface_variants:
+        row = "| %s | %.2f | " % (v, cross.preference[v])
+        row += " | ".join(_pct(f.comp_lift[v]) for f in cross.families) + " |"
+        lines.append(row)
+    lines.append("")
+    for f in cross.families:
+        lines.append("- family `%s` (%d readers): reversal %s"
+                     % (f.family, len(f.readers),
+                        "holds ✓" if f.reversal_holds else "absent ✗"))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_report_md(book: ScoreBook, h1: H1Analysis,
+                     cross: Optional[CrossFamilyAnalysis] = None) -> str:
     lines: List[str] = ["# Glass Box — comprehension vs preference (H1)", ""]
     lines.append("Readers: " + ", ".join("`%s`" % r for r in book.readers))
     lines.append("")
@@ -139,19 +184,21 @@ def render_report_md(book: ScoreBook, h1: H1Analysis) -> str:
         else:
             lines.append("- No reversal: preference and comprehension agree here.")
         lines.append("")
+    if cross is not None:
+        lines.append(render_cross_family_md(cross))
     return "\n".join(lines)
 
 
 def write_run(out_dir: str, scenarios: Sequence[Scenario],
               results: Sequence[QuestionResult], book: ScoreBook, h1: H1Analysis,
-              skip_render: bool) -> Dict[str, str]:
+              cross: CrossFamilyAnalysis, skip_render: bool) -> Dict[str, str]:
     os.makedirs(out_dir, exist_ok=True)
     results_path = os.path.join(out_dir, "results.json")
     report_path = os.path.join(out_dir, "report.md")
     with open(results_path, "w", encoding="utf-8") as fh:
-        json.dump(build_results(scenarios, results, book, h1, skip_render), fh, indent=2)
+        json.dump(build_results(scenarios, results, book, h1, cross, skip_render), fh, indent=2)
     with open(report_path, "w", encoding="utf-8") as fh:
-        fh.write(render_report_md(book, h1))
+        fh.write(render_report_md(book, h1, cross))
     return {"results": results_path, "report": report_path}
 
 
