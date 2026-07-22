@@ -41,6 +41,8 @@ PYTHONPATH=src python3 -m glassbox repair --scenario loans --reader simulated:li
 
 Real readers, per run: `--readers anthropic:claude-sonnet-5,openrouter:qwen/qwen3-vl-8b-instruct` (needs the matching key in your environment).
 
+More commands: `glassbox study --config data/studies/offline_demo.json` (a reproducible, pre-registerable run across reader families) · `glassbox anchor --set data/anchors/fixture.json` (H3: correlate model vs human accuracy) · `glassbox optimize` (M4: search the interface space for the highest comprehension reward).
+
 ## Layout
 
 ```

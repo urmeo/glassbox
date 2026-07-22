@@ -3,6 +3,24 @@
 All notable changes to Glass Box are documented here. This project follows
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+Offline scaffolding for later phases (everything below is verifiable without API keys or
+paid training; the live/trained runs are gated):
+
+### Added
+- Replicates and variance: readers can answer each question N times; the score book
+  reports the spread (for stochastic real readers).
+- Cross-family analysis: whether the preference/comprehension divergence survives across
+  independent reader families.
+- Reproducible studies: a run is a JSON config (`glassbox study --config …`) echoed into
+  its results for provenance.
+- Pairwise preference judge (`--judge pairwise`), simulated and a real-API adapter.
+- H3 anchoring (`glassbox anchor`): correlate model vs published-human per-item accuracy
+  (Spearman/Pearson/Kendall) and report where the proxy breaks; ships a labeled fixture.
+- M4 reward = comprehension lift, an offline interface search that maximizes it
+  (`glassbox optimize`), an anti-gaming reader-pool guard, and gated training configs.
+
 ## [0.1.0] — 2026-07-23
 
 First release: the measurement harness (render → read → score).
