@@ -12,11 +12,13 @@ how an interface *presents*, never at whether its content is correct.
 
 from __future__ import annotations
 
+import re
 import statistics
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import Dict, List, Optional, Sequence
 
-from .interfaces import Presentation
+from . import interfaces
+from .interfaces import INTERFACE_VARIANTS, Presentation
 from .schema import Scenario
 
 
@@ -65,10 +67,18 @@ class SimulatedJudge(Judge):
 
 
 def build_judge(spec: str) -> Judge:
-    """Construct a judge from a spec string. ``polish`` is the deterministic v1 judge."""
+    """Construct a judge from a spec string.
+
+    ``polish`` — deterministic rating judge (v1). ``pairwise`` — deterministic pairwise
+    judge as win-rate. ``pairwise:<reader-spec>`` — a real pairwise API judge, e.g.
+    ``pairwise:anthropic:claude-sonnet-5`` (needs the matching key)."""
     if spec in ("polish", "simulated", "simulated:polish"):
         return SimulatedJudge()
-    raise ValueError("unknown judge %r (have: polish)" % spec)
+    if spec in ("pairwise", "pairwise:simulated", "pairwise:polish"):
+        return PairwiseRatingJudge(SimulatedPairwiseJudge())
+    if spec.startswith("pairwise:"):
+        return PairwiseRatingJudge(ApiPairwiseJudge(spec[len("pairwise:"):]))
+    raise ValueError("unknown judge %r (have: polish, pairwise, pairwise:<reader>)" % spec)
 
 
 def judge_all(judge: Judge, scenario: Scenario,
@@ -78,3 +88,111 @@ def judge_all(judge: Judge, scenario: Scenario,
                        score=judge.preference(scenario, p), judge=judge.name,
                        simulated=judge.simulated)
             for p in presentations]
+
+
+# --- pairwise judging (M2 upgrade: compare two interfaces, aggregate to a ranking) ---
+
+def parse_ab(reply: str) -> Optional[str]:
+    """Extract 'A' or 'B' from a pairwise reply, or None."""
+    m = re.search(r"\b([AB])\b", (reply or "").upper())
+    return m.group(1) if m else None
+
+
+class PairwiseJudge:
+    """Compares two interfaces and picks the one that conveys more understanding."""
+
+    name = "pairwise"
+    simulated = False
+
+    def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
+        """Return 'A' if the first interface wins, else 'B'."""
+        raise NotImplementedError
+
+
+class SimulatedPairwiseJudge(PairwiseJudge):
+    """Deterministic pairwise judge — the higher polish score wins (ties by variant name)."""
+
+    name = "simulated:pairwise-polish"
+    simulated = True
+
+    def __init__(self):
+        self._rating = SimulatedJudge()
+
+    def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
+        sa = self._rating.preference(scenario, a)
+        sb = self._rating.preference(scenario, b)
+        if sa != sb:
+            return "A" if sa > sb else "B"
+        return "A" if a.variant <= b.variant else "B"
+
+
+class ApiPairwiseJudge(PairwiseJudge):
+    """Real pairwise judge over a text description of each interface. Needs a key."""
+
+    def __init__(self, reader_spec: str, max_tokens: int = 8):
+        family, _, model = reader_spec.partition(":")
+        if family not in ("anthropic", "openai", "openrouter"):
+            raise ValueError("pairwise judge family must be anthropic/openai/openrouter")
+        if not model:
+            raise ValueError("pairwise judge needs a model id, e.g. pairwise:anthropic:claude-sonnet-5")
+        self.family = family
+        self.model = model
+        self.name = "pairwise:" + reader_spec
+        self.simulated = False
+        self.max_tokens = max_tokens
+
+    def _prompt(self, a: Presentation, b: Presentation) -> str:
+        from .prompts import load_prompt
+        return (load_prompt("judge_pairwise")
+                .replace("{a}", a.to_text()).replace("{b}", b.to_text()))
+
+    def build_payload(self, a: Presentation, b: Presentation) -> Dict:
+        text = self._prompt(a, b)
+        return {"model": self.model, "max_tokens": self.max_tokens,
+                "messages": [{"role": "user", "content": [{"type": "text", "text": text}]}]}
+
+    def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
+        from .readers._http import post_json, require_key
+        if self.family == "anthropic":
+            from .readers.anthropic import ENDPOINT, API_VERSION, extract_text
+            key = require_key("ANTHROPIC_API_KEY")
+            resp = post_json(ENDPOINT, {"x-api-key": key, "anthropic-version": API_VERSION},
+                             self.build_payload(a, b))
+            text = extract_text(resp)
+        else:
+            from .readers.openai_compat import _ENDPOINTS, _KEY_ENV, extract_text
+            key = require_key(_KEY_ENV[self.family])
+            resp = post_json(_ENDPOINTS[self.family], {"authorization": "Bearer " + key},
+                             self.build_payload(a, b))
+            text = extract_text(resp)
+        return parse_ab(text) or "A"
+
+
+class PairwiseRatingJudge(Judge):
+    """Turns a pairwise judge into a per-interface win-rate, usable wherever a rating
+    judge is — so the H1 and cross-family analyses need no change to use pairwise."""
+
+    def __init__(self, pairwise: PairwiseJudge, variants: Optional[Sequence[str]] = None):
+        self._pw = pairwise
+        self._variants = list(variants) if variants else list(INTERFACE_VARIANTS)
+        self.name = "winrate(%s)" % pairwise.name
+        self.simulated = pairwise.simulated
+        self._cache: Dict[str, Dict[str, float]] = {}
+
+    def _winrates(self, scenario: Scenario) -> Dict[str, float]:
+        if scenario.id in self._cache:
+            return self._cache[scenario.id]
+        pres = {v: interfaces.variant(scenario, v) for v in self._variants}
+        wins = {v: 0 for v in self._variants}
+        for i in range(len(self._variants)):
+            for j in range(i + 1, len(self._variants)):
+                va, vb = self._variants[i], self._variants[j]
+                winner = self._pw.compare(scenario, pres[va], pres[vb])
+                wins[va if winner == "A" else vb] += 1
+        k = len(self._variants)
+        rates = {v: (wins[v] / (k - 1) if k > 1 else 0.0) for v in self._variants}
+        self._cache[scenario.id] = rates
+        return rates
+
+    def preference(self, scenario: Scenario, presentation: Presentation) -> float:
+        return self._winrates(scenario).get(presentation.variant, 0.0)
