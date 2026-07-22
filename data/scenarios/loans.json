@@ -1,0 +1,85 @@
+{
+  "id": "loans",
+  "title": "Three loan offers",
+  "domain": "choosing between options",
+  "description": "Three offers for the same $10,000 loan. Each card advertises a headline total, but a card's advertised total is not always what the loan actually costs once every payment and fee is counted. The honest comparison is monthly payment times the number of payments, plus fees.",
+  "data": {
+    "unit": "$",
+    "value_label": "total cost over term",
+    "items": [
+      {
+        "id": "A",
+        "label": "Offer A",
+        "monthly_payment": 305.0,
+        "term_months": 36,
+        "fees": 300,
+        "apr_pct": 7.1,
+        "stated_total": 10800
+      },
+      {
+        "id": "B",
+        "label": "Offer B",
+        "monthly_payment": 299.0,
+        "term_months": 36,
+        "fees": 150,
+        "apr_pct": 6.4,
+        "stated_total": 10914
+      },
+      {
+        "id": "C",
+        "label": "Offer C",
+        "monthly_payment": 289.0,
+        "term_months": 42,
+        "fees": 0,
+        "apr_pct": 6.9,
+        "stated_total": 12138
+      }
+    ],
+    "derived": {
+      "total_cost": "monthly_payment * term_months + fees"
+    },
+    "presentation": {
+      "primary_metric": "total_cost",
+      "primary_extreme": "argmin",
+      "headline_field": "stated_total",
+      "cards_fields": ["apr_pct", "monthly_payment"],
+      "detail_fields": ["monthly_payment", "term_months", "fees"]
+    }
+  },
+  "questions": [
+    {
+      "id": "cheapest_total",
+      "stem": "Which offer costs the least in total over its full term?",
+      "compute": { "op": "argmin", "field": "total_cost" },
+      "choices": [
+        { "id": "a", "text": "Offer A", "value": "A" },
+        { "id": "b", "text": "Offer B", "value": "B" },
+        { "id": "c", "text": "Offer C", "value": "C" }
+      ],
+      "answer": "b"
+    },
+    {
+      "id": "count_over_11k",
+      "stem": "How many of the offers cost more than $11,000 in total over their term?",
+      "compute": { "op": "count_gt", "field": "total_cost", "threshold": 11000 },
+      "choices": [
+        { "id": "n0", "text": "0", "value": 0 },
+        { "id": "n1", "text": "1", "value": 1 },
+        { "id": "n2", "text": "2", "value": 2 },
+        { "id": "n3", "text": "3", "value": 3 }
+      ],
+      "answer": "n2"
+    },
+    {
+      "id": "second_cheapest",
+      "stem": "Which offer is the second-cheapest over its full term?",
+      "compute": { "op": "rank", "field": "total_cost", "k": 2, "order": "asc" },
+      "choices": [
+        { "id": "a", "text": "Offer A", "value": "A" },
+        { "id": "b", "text": "Offer B", "value": "B" },
+        { "id": "c", "text": "Offer C", "value": "C" }
+      ],
+      "answer": "a"
+    }
+  ]
+}
