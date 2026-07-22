@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from . import __version__, interfaces
 from .analysis import CrossFamilyAnalysis, H1Analysis
 from .anchor import AnchorResult
+from .reward import EvalResult
 from .render import renderer_version
 from .repair import RepairResult
 from .schema import Question, Scenario
@@ -316,3 +317,61 @@ def write_anchor(out_dir: str, result: AnchorResult) -> Dict[str, str]:
             "points": [p.__dict__ for p in result.points],
         }, fh, indent=2)
     return {"report": report_path, "anchor": json_path}
+
+
+# --- optimize report (M4, offline generator search) -------------------------
+
+OPTIMIZE_CAVEAT = (
+    "> **Offline search generator.** The \"generator\" here is an exhaustive search over "
+    "the interface feature-lattice, not a trained model — it proves the comprehension "
+    "reward is optimizable. The real generator (SFT → GRPO on a VLM) is gated on paid "
+    "training (Tinker credits + GPU)."
+)
+
+
+def render_optimize_md(ev: EvalResult, readers: Sequence[str],
+                       training: Optional[Dict[str, Any]] = None) -> str:
+    lines: List[str] = ["# Glass Box — comprehension-optimized interface (M4)", ""]
+    lines.append("Readers scoring the reward: " + ", ".join("`%s`" % r for r in readers))
+    lines.append("")
+    lines.append(OPTIMIZE_CAVEAT)
+    lines.append("")
+    lines.append("**Generator selected:** `%s`" % (", ".join(sorted(ev.generator_features)) or "(none)"))
+    lines.append("")
+    lines.append("| interface | comprehension lift |")
+    lines.append("|---|---:|")
+    lines.append("| generator (reward-optimized) | %s |" % _pct(ev.generator_reward))
+    lines.append("| polished cards (preference-tuned analog) | %s |" % _pct(ev.cards_reward))
+    lines.append("| plain-text baseline | +0 pts |")
+    lines.append("")
+    lines.append("**Verdict:** beats the preference-tuned baseline on comprehension: **%s** · "
+                 "beats plain text: **%s**."
+                 % ("yes" if ev.beats_preference_tuned else "no",
+                    "yes" if ev.beats_plaintext else "no"))
+    lines.append("")
+    if training is not None:
+        state = "ready to run" if not training["errors"] else "BLOCKED"
+        lines.append("**Training plan** `%s` — %s. Pre-run validation: %s."
+                     % (training["id"], training["status"], state))
+        for e in training["errors"]:
+            lines.append("- ✗ %s" % e)
+        lines.append("")
+    return "\n".join(lines)
+
+
+def write_optimize(out_dir: str, ev: EvalResult, readers: Sequence[str],
+                   training: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    os.makedirs(out_dir, exist_ok=True)
+    report_path = os.path.join(out_dir, "optimize.md")
+    json_path = os.path.join(out_dir, "optimize.json")
+    with open(report_path, "w", encoding="utf-8") as fh:
+        fh.write(render_optimize_md(ev, readers, training))
+    with open(json_path, "w", encoding="utf-8") as fh:
+        json.dump({
+            "generator_features": sorted(ev.generator_features),
+            "generator_reward": ev.generator_reward, "cards_reward": ev.cards_reward,
+            "beats_preference_tuned": ev.beats_preference_tuned,
+            "beats_plaintext": ev.beats_plaintext, "readers": list(readers),
+            "training": training,
+        }, fh, indent=2)
+    return {"report": report_path, "optimize": json_path}

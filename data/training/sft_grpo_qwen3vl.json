@@ -1,0 +1,21 @@
+{
+  "id": "sft_grpo_qwen3vl_8b",
+  "description": "SFT seed on the best comprehension-scored interfaces, then GRPO maximizing the comprehension reward directly. Requires Tinker credits and a GPU — not run in this repo.",
+  "framework": "tinker",
+  "base_model": "Qwen/Qwen3-VL-8B-Instruct",
+  "generator_family": "qwen",
+  "methods": ["sft", "grpo"],
+  "reward": "comprehension_lift",
+  "reader_pool": [
+    "anthropic:claude-sonnet-5",
+    "anthropic:claude-opus-4-8",
+    "anthropic:claude-haiku-4-5-20251001"
+  ],
+  "status": "not run — requires paid training (Tinker credits + GPU); the reward and an offline search optimizer are verifiable without it",
+  "params": {
+    "lora": { "rank": 16, "alpha": 32 },
+    "sft": { "epochs": 1, "lr": 1e-5, "seed_from": "top comprehension-scored interfaces" },
+    "grpo": { "group_size": 8, "kl_coef": 0.04, "lr": 1e-6, "seed": 0 },
+    "note": "reader_pool deliberately excludes the qwen family so the generator cannot win by pleasing a sibling model; add a second non-qwen open family once its OpenRouter slug is confirmed."
+  }
+}
