@@ -8,7 +8,8 @@ from typing import List, Optional, Sequence
 
 from . import report, validate as validate_mod
 from . import repair as repair_mod
-from .readers import build_reader
+from .anchor import AnchorError, load_anchor_set, run_anchor
+from .readers import build_reader, build_readers
 from .readers._http import MissingKeyError
 from .render import RenderError
 from .schema import Scenario, load_all_scenarios
@@ -88,6 +89,34 @@ def cmd_study(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_anchor(args: argparse.Namespace) -> int:
+    try:
+        anchor = load_anchor_set(args.set)
+    except (AnchorError, OSError) as exc:
+        raise SystemExit("cannot load anchor set %r: %s" % (args.set, exc))
+    readers = build_readers(args.readers.split(","))
+    try:
+        result = run_anchor(anchor, readers, skip_render=args.skip_render,
+                            replicates=args.replicates, out_dir=args.out)
+    except MissingKeyError as exc:
+        raise SystemExit("cannot run a real reader: %s" % exc)
+    except RenderError as exc:
+        raise SystemExit("rendering failed: %s\n(try --skip-render to run without a browser)" % exc)
+
+    paths = report.write_anchor(args.out, result)
+    if anchor.is_fixture:
+        print("(fixture anchor set — synthetic human numbers, not an H3 result)")
+    print("anchor %s: Spearman=%s Pearson=%s Kendall=%s (%d items)"
+          % (anchor.id, _corr(result.spearman), _corr(result.pearson),
+             _corr(result.kendall), result.n_items))
+    print("wrote %s" % paths["report"])
+    return 0
+
+
+def _corr(x: float) -> str:
+    return "nan" if x != x else "%.2f" % x
+
+
 def cmd_repair(args: argparse.Namespace) -> int:
     scenarios = _select_scenarios(args.scenario)
     scenario = scenarios[0]
@@ -139,6 +168,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_study.add_argument("--config", required=True, help="path to a study config JSON")
     p_study.add_argument("--out", default="runs/study", help="output directory")
     p_study.set_defaults(func=cmd_study)
+
+    p_anchor = sub.add_parser("anchor", help="H3: correlate model vs human accuracy on an anchor set")
+    p_anchor.add_argument("--set", required=True, help="path to an anchor set JSON")
+    p_anchor.add_argument("--readers", default="simulated", help="comma-separated reader specs")
+    p_anchor.add_argument("--replicates", type=int, default=1, help="answers per question per reader")
+    p_anchor.add_argument("--skip-render", action="store_true", help="skip PNG rendering")
+    p_anchor.add_argument("--out", default="runs/anchor", help="output directory")
+    p_anchor.set_defaults(func=cmd_anchor)
 
     p_val = sub.add_parser("validate", help="recompute every answer key from source")
     p_val.set_defaults(func=cmd_validate)

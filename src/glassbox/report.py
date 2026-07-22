@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from . import __version__, interfaces
 from .analysis import CrossFamilyAnalysis, H1Analysis
+from .anchor import AnchorResult
 from .render import renderer_version
 from .repair import RepairResult
 from .schema import Question, Scenario
@@ -254,3 +255,64 @@ def write_repair(out_dir: str, result: RepairResult, scenario: Scenario,
                    "turns": [t.__dict__ for t in result.turns]}
         json.dump(payload, fh, indent=2)
     return {"transcript": transcript_path, "repair": json_path}
+
+
+# --- anchor report (H3) -----------------------------------------------------
+
+ANCHOR_FIXTURE_CAVEAT = (
+    "> **Fixture anchor set.** The human numbers here are synthetic, invented only to "
+    "verify the harness. This is **not** an H3 result — replace with published CALVI / "
+    "Cleveland & McGill per-item human accuracy for a real anchor run."
+)
+
+
+def _corr(x: float) -> str:
+    return "—" if x != x else "%.2f" % x  # nan -> em dash
+
+
+def render_anchor_md(result: AnchorResult) -> str:
+    a = result.anchor
+    lines: List[str] = ["# Glass Box — H3 anchoring (model reader vs human)", ""]
+    lines.append("Anchor set: `%s` — %s" % (a.id, a.source))
+    lines.append("Readers: " + ", ".join("`%s`" % r for r in result.readers))
+    lines.append("Condition: readers see the `%s` presentation." % a.condition)
+    lines.append("")
+    if a.is_fixture:
+        lines.append(ANCHOR_FIXTURE_CAVEAT)
+        lines.append("")
+    lines.append("**Correlation (model vs human accuracy, %d items):** Spearman %s · "
+                 "Pearson %s · Kendall %s." % (result.n_items, _corr(result.spearman),
+                                               _corr(result.pearson), _corr(result.kendall)))
+    lines.append("")
+    lines.append("| item | human | model | gap |")
+    lines.append("|---|---:|---:|---:|")
+    for p in result.points:
+        lines.append("| %s/%s | %.0f%% | %.0f%% | %.0f%% |"
+                     % (p.scenario, p.question, p.human_accuracy * 100,
+                        p.model_accuracy * 100, p.abs_gap * 100))
+    lines.append("")
+    lines.append("**Where the proxy breaks (largest gaps):**")
+    for p in result.breaks():
+        lines.append("- `%s/%s` — human %.0f%% vs model %.0f%% (gap %.0f pts)"
+                     % (p.scenario, p.question, p.human_accuracy * 100,
+                        p.model_accuracy * 100, p.abs_gap * 100))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_anchor(out_dir: str, result: AnchorResult) -> Dict[str, str]:
+    os.makedirs(out_dir, exist_ok=True)
+    report_path = os.path.join(out_dir, "anchor.md")
+    json_path = os.path.join(out_dir, "anchor.json")
+    with open(report_path, "w", encoding="utf-8") as fh:
+        fh.write(render_anchor_md(result))
+    with open(json_path, "w", encoding="utf-8") as fh:
+        json.dump({
+            "anchor_id": result.anchor.id, "source": result.anchor.source,
+            "is_fixture": result.anchor.is_fixture, "condition": result.anchor.condition,
+            "readers": result.readers,
+            "correlations": {"spearman": result.spearman, "pearson": result.pearson,
+                             "kendall": result.kendall},
+            "points": [p.__dict__ for p in result.points],
+        }, fh, indent=2)
+    return {"report": report_path, "anchor": json_path}
