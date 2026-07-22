@@ -1,0 +1,8 @@
+You are shown an interface and must answer a question about it using ONLY the information the interface presents. Do not rely on outside knowledge, assumptions, or arithmetic the interface does not support.
+
+{context_block}Question: {stem}
+
+Options:
+{options}
+
+Reply with only the letter of the single best option (for example: A). Answer with exactly one letter, even if you are unsure.
