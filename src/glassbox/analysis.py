@@ -170,3 +170,81 @@ def analyze_h1(book: ScoreBook, scenarios: Sequence[Scenario], judge: Judge) -> 
     mean_rho = statistics.fmean(valid_rhos) if valid_rhos else float("nan")
     return H1Analysis(scenarios=scenario_reports, mean_spearman=mean_rho,
                       simulated=book.all_simulated(), readers=book.readers)
+
+
+# --- cross-family analysis (the M2 headline: does divergence survive families?) ---
+
+@dataclass(frozen=True)
+class FamilyComprehension:
+    family: str
+    readers: List[str]
+    comp_lift: Dict[str, float]   # interface variant -> mean lift within this family
+    reversal_holds: bool          # some interface preferred over another is understood less
+
+
+@dataclass(frozen=True)
+class CrossFamilyAnalysis:
+    families: List[FamilyComprehension]
+    interface_variants: List[str]
+    preference: Dict[str, float]        # variant -> mean preference (family-independent)
+    cross_family_agreement: float       # mean pairwise Spearman of family comp-lift vectors
+    survives_across_families: bool      # >=2 families and the reversal holds in every one
+
+    @property
+    def n_families(self) -> int:
+        return len(self.families)
+
+
+def _reversal_present(variants: List[str], pref: Dict[str, float],
+                      comp: Dict[str, float]) -> bool:
+    for i in variants:
+        for j in variants:
+            if i != j and pref[i] > pref[j] and comp[i] < comp[j]:
+                return True
+    return False
+
+
+def analyze_cross_family(book: ScoreBook, scenarios: Sequence[Scenario],
+                         judge: Judge) -> CrossFamilyAnalysis:
+    """Group readers by API family and test whether the H1 reversal survives across them.
+
+    Preference is family-independent (the judge scores interfaces, not readers); the
+    comprehension ranking is computed per family, pooled across scenarios."""
+    variants = book.interface_variants()
+
+    # Mean preference per interface, averaged over scenarios (family-independent).
+    pref_totals = {v: [] for v in variants}
+    for scenario in scenarios:
+        presentations = [interfaces.variant(scenario, v) for v in variants]
+        for p in judge_all(judge, scenario, presentations):
+            if p.variant in pref_totals:
+                pref_totals[p.variant].append(p.score)
+    preference = {v: statistics.fmean(pref_totals[v]) if pref_totals[v] else 0.0
+                  for v in variants}
+
+    families: List[FamilyComprehension] = []
+    for fam in book.families():
+        fam_readers = book.readers_in_family(fam)
+        comp = {}
+        for v in variants:
+            lifts = [book.lift(r, s.id, v) for r in fam_readers for s in scenarios]
+            comp[v] = statistics.fmean(lifts) if lifts else 0.0
+        families.append(FamilyComprehension(
+            family=fam, readers=fam_readers, comp_lift=comp,
+            reversal_holds=_reversal_present(variants, preference, comp)))
+
+    # Cross-family agreement: do families rank interfaces the same way by comprehension?
+    corrs = []
+    for a in range(len(families)):
+        for b in range(a + 1, len(families)):
+            va = [families[a].comp_lift[v] for v in variants]
+            vb = [families[b].comp_lift[v] for v in variants]
+            rho = spearman(va, vb)
+            if rho == rho:  # skip nan (a constant vector)
+                corrs.append(rho)
+    agreement = statistics.fmean(corrs) if corrs else float("nan")
+
+    survives = (len(families) >= 2 and all(f.reversal_holds for f in families))
+    return CrossFamilyAnalysis(families=families, interface_variants=variants,
+                               preference=preference, cross_family_agreement=agreement,
+                               survives_across_families=survives)

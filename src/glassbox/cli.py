@@ -48,8 +48,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         raise SystemExit("rendering failed: %s\n(try --skip-render to run without a browser)" % exc)
 
     book = scoring.ScoreBook(results)
-    h1 = analysis.analyze_h1(book, scenarios, SimulatedJudge())
-    paths = report.write_run(args.out, scenarios, results, book, h1, args.skip_render)
+    judge = SimulatedJudge()
+    h1 = analysis.analyze_h1(book, scenarios, judge)
+    cross = analysis.analyze_cross_family(book, scenarios, judge)
+    paths = report.write_run(args.out, scenarios, results, book, h1, cross, args.skip_render)
 
     print("readers: %s" % ", ".join(book.readers))
     if h1.simulated:
@@ -61,6 +63,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         for rv in sh.reversals:
             print("  %s: '%s' preferred over '%s' but understood less"
                   % (sh.scenario_id, rv.preferred, rv.understood))
+    if cross.n_families >= 2:
+        print("cross-family: divergence %s (agreement = %.2f across %d families)"
+              % ("survives" if cross.survives_across_families else "does not survive",
+                 cross.cross_family_agreement, cross.n_families))
+    else:
+        print("cross-family: 1 family only — needs >=2 for a cross-family result")
     print("wrote %s and %s" % (paths["report"], paths["results"]))
     return 0
 
