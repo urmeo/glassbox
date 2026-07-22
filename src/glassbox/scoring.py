@@ -127,7 +127,7 @@ class ScoreBook:
         for _, chosen in by_q.items():
             modal = max(set(chosen), key=chosen.count)
             fractions.append(chosen.count(modal) / len(chosen))
-        return statistics.fmean(fractions) if fractions else 1.0
+        return statistics.fmean(fractions) if fractions else float("nan")  # no data != stable
 
     # --- cross-reader aggregates (the headline) ---
     def mean_lift(self, scenario: str, variant: str) -> float:

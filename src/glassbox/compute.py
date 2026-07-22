@@ -3,7 +3,7 @@
 Two pieces:
 
 * ``evaluate_expr`` — a *safe* arithmetic evaluator over a restricted AST (numbers,
-  field names, and the operators ``+ - * / // % **`` only). It never calls ``eval``
+  field names, and the operators ``+ - * / // %`` only). It never calls ``eval``
   and never touches attributes, calls, subscripts, or comprehensions, so a scenario
   file cannot smuggle in executable code. This is what lets "derived" fields such as
   ``total_cost = monthly_payment * term_months + fees`` live in data while staying
