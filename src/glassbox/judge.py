@@ -4,10 +4,8 @@ It runs alongside the readers and is deliberately kept out of the score: compreh
 is measured only by readers answering questions. Keeping preference and comprehension
 separate is what lets the harness show them diverge.
 
-The v1 judge is a deterministic **rating** judge over aesthetic features — a stand-in
-that reproduces the field's "people prefer the polished one" finding offline. It is a
-placeholder that a later version upgrades to real pairwise API judges. It looks only at
-how an interface *presents*, never at whether its content is correct.
+The deterministic rating judge scores presentation features offline. Pairwise judges
+compare interfaces using either the same simulated rating or a configured API reader.
 """
 
 from __future__ import annotations
