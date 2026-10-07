@@ -1,20 +1,22 @@
-"""M4 training configs — declared, validated, gated (never run)."""
+"""M4 training configs; declared, validated, gated (never run)."""
 
 import copy
-import os
 import unittest
 
-import glassbox
 from glassbox import training
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(glassbox.__file__))))
-SHIPPED = os.path.join(ROOT, "data", "training", "sft_grpo_qwen3vl.json")
+SHIPPED = "sft_grpo_qwen3vl"
 
 VALID = {
-    "id": "t", "description": "d", "framework": "tinker",
-    "base_model": "Qwen/Qwen3-VL-8B-Instruct", "generator_family": "qwen",
-    "methods": ["sft", "grpo"], "reward": "comprehension_lift",
-    "reader_pool": ["anthropic:claude-sonnet-5"], "status": "not run",
+    "id": "t",
+    "description": "d",
+    "framework": "tinker",
+    "base_model": "Qwen/Qwen3-VL-8B-Instruct",
+    "generator_family": "qwen",
+    "methods": ["sft", "grpo"],
+    "reward": "comprehension_lift",
+    "reader_pool": ["anthropic:claude-sonnet-5"],
+    "status": "not run",
 }
 
 
@@ -30,9 +32,14 @@ class TestTrainingConfig(unittest.TestCase):
 
     def test_reader_pool_with_generator_family_rejected(self):
         bad = copy.deepcopy(VALID)
-        bad["reader_pool"] = ["anthropic:claude-sonnet-5", "openrouter:qwen/qwen3-vl-8b-instruct"]
+        bad["reader_pool"] = [
+            "anthropic:claude-sonnet-5",
+            "openrouter:qwen/qwen3-vl-8b-instruct",
+        ]
         errors = training.validate_training_config(training.parse_training_config(bad))
-        self.assertTrue(any("anti-gaming" in e or "exclude" in e for e in errors), errors)
+        self.assertTrue(
+            any("anti-gaming" in e or "exclude" in e for e in errors), errors
+        )
 
     def test_unresolvable_reader_family_rejected(self):
         # A reader whose model family cannot be resolved must fail closed, so the

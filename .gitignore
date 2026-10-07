@@ -1,16 +1,16 @@
-# Ship .gitignore
 .DS_Store
 Thumbs.db
 .env
 .env.*
-
-# run outputs
-runs/
-
-# python
 __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+.venv/
 build/
 dist/
+runs/
+outputs/*/
+outputs/*.json
+outputs/*.jsonl
+outputs/*.md

@@ -1,11 +1,4 @@
-"""Report — write a run's results to ``results.json`` + a human ``report.md``, and a
-repair loop to ``transcript.md``.
-
-Run provenance (models, renderer, versions, a content hash per scenario) is recorded so
-a result is always traceable to the exact data and setup that produced it. When every
-reader is simulated, the report says so at the top and frames the finding as a pipeline
-demonstration, never evidence.
-"""
+"""Strict JSON and concise reports with separate reader and judge provenance."""
 
 from __future__ import annotations
 
@@ -15,16 +8,23 @@ import math
 import os
 import platform
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Sequence
 
-from . import __version__, interfaces
+from . import __version__
 from .analysis import CrossFamilyAnalysis, H1Analysis
 from .anchor import AnchorResult
 from .reward import EvalResult
 from .render import renderer_version
 from .repair import RepairResult
-from .schema import Question, Scenario
+from .schema import (
+    Question,
+    Scenario,
+    scenario_payload,
+    scenario_sha256,
+    SCENARIO_HASH_FORMAT,
+)
 from .scoring import ScoreBook, QuestionResult
 
 SIMULATED_CAVEAT = (
@@ -36,8 +36,7 @@ SIMULATED_CAVEAT = (
 
 
 def _json_safe(obj: Any) -> Any:
-    """Recursively replace NaN/Infinity floats with None — bare NaN is invalid JSON
-    (RFC 8259) and a strict parser rejects it. Undefined correlations become null."""
+    """Undefined floating measures become JSON null."""
     if isinstance(obj, float):
         return None if (math.isnan(obj) or math.isinf(obj)) else obj
     if isinstance(obj, dict):
@@ -48,16 +47,26 @@ def _json_safe(obj: Any) -> Any:
 
 
 def _dump(payload: Any, fh) -> None:
-    json.dump(_json_safe(payload), fh, indent=2)
+    json.dump(_json_safe(payload), fh, indent=2, ensure_ascii=False, allow_nan=False)
 
 
 def _scenario_hash(scenario: Scenario) -> str:
-    blob = json.dumps(scenario.data, sort_keys=True).encode("utf-8")
-    return hashlib.sha256(blob).hexdigest()[:16]
+    return scenario_sha256(scenario)
 
 
-def run_metadata(scenarios: Sequence[Scenario], reader_names: Sequence[str],
-                 skip_render: bool, study: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def run_metadata(
+    scenarios: Sequence[Scenario],
+    reader_names: Sequence[str],
+    skip_render: bool,
+    study: Optional[Dict[str, Any]] = None,
+    *,
+    book: Optional[ScoreBook] = None,
+    h1: Optional[H1Analysis] = None,
+) -> Dict[str, Any]:
+    from .prompts import load_prompt
+    from .resources import resource_sha256
+    from .answer_parsing import PARSER_VERSION
+
     meta = {
         "glassbox_version": __version__,
         "python": platform.python_version(),
@@ -65,10 +74,47 @@ def run_metadata(scenarios: Sequence[Scenario], reader_names: Sequence[str],
         "renderer": renderer_version(skip=skip_render),
         "readers": list(reader_names),
         "scenarios": {s.id: _scenario_hash(s) for s in scenarios},
-        "deterministic": all(r.startswith("simulated:") for r in reader_names),
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "argv": " ".join(sys.argv),
+        "scenario_hash_format": SCENARIO_HASH_FORMAT,
+        "scenario_snapshots": {s.id: scenario_payload(s) for s in scenarios},
+        "prompt_resource_sha256": {
+            name: resource_sha256("prompts", name)
+            for name in ("reader_mcq", "judge_pairwise")
+        },
+        "prompt_template_sha256": {
+            name: hashlib.sha256(load_prompt(name).encode("utf-8")).hexdigest()
+            for name in ("reader_mcq", "judge_pairwise")
+        },
+        "answer_parser_version": PARSER_VERSION,
+        "deterministic": h1.deterministic if h1 is not None else None,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "argv": list(sys.argv),
     }
+    if book is not None:
+        actual_variants = list(dict.fromkeys(row.variant for row in book.results))
+        meta["resolved_selection"] = {
+            "scenarios": [s.id for s in scenarios],
+            "interfaces": [v for v in actual_variants if v in book.interface_variants()],
+            "variants": actual_variants,
+            "readers": list(reader_names),
+        }
+        meta["reader_identity"] = {
+            name: {
+                "provider": row.reader_provider,
+                "model": row.reader_model,
+                "model_family": row.reader_model_family,
+                "family_resolved": row.reader_family_resolved,
+                "family_basis": row.reader_family_basis,
+                "simulated": row.reader_simulated,
+                "deterministic": row.reader_deterministic,
+            }
+            for name in book.readers
+            for row in [next(r for r in book.results if r.reader == name)]
+        }
+        meta["all_readers_simulated"] = book.all_simulated()
+        meta["any_readers_simulated"] = book.any_simulated()
+        meta["mixed_readers"] = book.any_simulated() and book.any_real()
+    if h1 is not None:
+        meta["judge"] = asdict(h1.judge)
     if study is not None:
         meta["study"] = study
     return meta
@@ -80,9 +126,16 @@ def _pct(x: float) -> str:
 
 # --- results.json -----------------------------------------------------------
 
-def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResult],
-                  book: ScoreBook, h1: H1Analysis, cross: CrossFamilyAnalysis,
-                  skip_render: bool, study: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+def build_results(
+    scenarios: Sequence[Scenario],
+    results: Sequence[QuestionResult],
+    book: ScoreBook,
+    h1: H1Analysis,
+    cross: CrossFamilyAnalysis,
+    skip_render: bool,
+    study: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     metrics: Dict[str, Any] = {}
     scen_h1 = {s.scenario_id: s for s in h1.scenarios}
     for sid in book.scenarios:
@@ -91,14 +144,22 @@ def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResul
             per_reader[r] = {
                 "ceiling": book.ceiling(r, sid),
                 "baseline": book.baseline(r, sid),
-                "variants": {v: {"accuracy": book.accuracy(r, sid, v),
-                                 "lift": book.lift(r, sid, v),
-                                 "ceiling_gap": book.ceiling_gap(r, sid, v)}
-                             for v in book.variants},
+                "variants": {
+                    v: {
+                        "accuracy": book.accuracy(r, sid, v),
+                        "lift": book.lift(r, sid, v),
+                        "ceiling_gap": book.ceiling_gap(r, sid, v),
+                    }
+                    for v in book.variants
+                },
             }
-        aggregate = {v: {"mean_lift": book.mean_lift(sid, v),
-                         "mean_accuracy": book.mean_accuracy(sid, v)}
-                     for v in book.variants}
+        aggregate = {
+            v: {
+                "mean_lift": book.mean_lift(sid, v),
+                "mean_accuracy": book.mean_accuracy(sid, v),
+            }
+            for v in book.variants
+        }
         sh = scen_h1[sid]
         metrics[sid] = {
             "readers": per_reader,
@@ -111,115 +172,203 @@ def build_results(scenarios: Sequence[Scenario], results: Sequence[QuestionResul
             },
         }
     return {
-        "meta": run_metadata(scenarios, book.readers, skip_render, study),
-        "per_question": [r.__dict__ for r in results],
+        "meta": run_metadata(
+            scenarios, book.readers, skip_render, study, book=book, h1=h1
+        ),
+        "per_question": [asdict(r) for r in results],
         "metrics": metrics,
         "h1_summary": {
             "mean_spearman": h1.mean_spearman,
             "divergence_found": h1.divergence_found,
             "simulated": h1.simulated,
+            "any_reader_simulated": h1.any_reader_simulated,
+            "mixed_readers": h1.mixed_readers,
+            "judge": asdict(h1.judge),
+            "deterministic": h1.deterministic,
         },
         "cross_family": {
             "n_families": cross.n_families,
-            "families": [{"family": f.family, "readers": f.readers,
-                          "comp_lift": f.comp_lift, "reversal_holds": f.reversal_holds}
-                         for f in cross.families],
+            "families": [
+                {
+                    "family": f.family,
+                    "readers": f.readers,
+                    "comp_lift": f.comp_lift,
+                    "reversal_holds": f.reversal_holds,
+                    "reversals": f.reversals,
+                }
+                for f in cross.families
+            ],
             "preference": cross.preference,
             "cross_family_agreement": cross.cross_family_agreement,
             "survives_across_families": cross.survives_across_families,
+            "survival_definition": "any_reversal_in_every_resolved_family",
+            "common_reversals": cross.common_reversals,
+            "unresolved_readers": cross.unresolved_readers,
+            "judge_target": cross.judge_target,
         },
     }
 
 
 # --- report.md --------------------------------------------------------------
 
+
 def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
-    lines: List[str] = ["## Cross-family agreement", ""]
-    if cross.n_families < 2:
-        fam = cross.families[0].family if cross.families else "none"
-        lines.append("Only **1** reader family (`%s`). Cross-family agreement needs ≥2 "
-                     "independent families — add real readers (M2, needs API keys). The "
-                     "reversal within this family: **%s**."
-                     % (fam, "holds" if cross.families and cross.families[0].reversal_holds
-                        else "not present"))
-        lines.append("")
-        return "\n".join(lines)
+    lines = [
+        "## Cross-family agreement",
+        "",
+        "%d resolved model families; unresolved readers excluded: %s."
+        % (cross.n_families, ", ".join(cross.unresolved_readers) or "none"),
+        "",
+    ]
+    lines.append(
+        "Any reversal in every resolved family: **%s** (requires at least 2)."
+        % ("yes" if cross.survives_across_families else "no")
+    )
+    lines.append(
+        "Common reversed pairs: %s."
+        % (
+            ", ".join("`%s` over `%s`" % pair for pair in cross.common_reversals)
+            or "none"
+        )
+    )
+    lines.append(
+        "Spearman agreement of family lift vectors: **%s**."
+        % _corr(cross.cross_family_agreement)
+    )
+    lines.append(
+        "Resolved labels describe model names; synthetic fixtures provide no independent empirical evidence."
+    )
+    lines.append("")
+    if cross.families:
+        lines.extend(
+            [
+                "| interface | judge score | "
+                + " | ".join(f.family for f in cross.families)
+                + " |",
+                "|---|---:|" + "---:|" * cross.n_families,
+            ]
+        )
+        for v in cross.interface_variants:
+            lines.append(
+                "| %s | %.2f | %s |"
+                % (
+                    v,
+                    cross.preference[v],
+                    " | ".join(_pct(f.comp_lift[v]) for f in cross.families),
+                )
+            )
+    return "\n".join(lines) + "\n"
 
-    verdict = ("survives across families ✓" if cross.survives_across_families
-               else "does NOT survive across all families")
-    lines.append("Divergence **%s** · cross-family agreement (Spearman of comprehension "
-                 "rankings) = **%.2f** across %d families."
-                 % (verdict, cross.cross_family_agreement, cross.n_families))
-    lines.append("")
-    header = "| interface | preference | " + " | ".join(f.family for f in cross.families) + " |"
-    lines.append(header)
-    lines.append("|---|---:|" + "---:|" * cross.n_families)
-    for v in cross.interface_variants:
-        row = "| %s | %.2f | " % (v, cross.preference[v])
-        row += " | ".join(_pct(f.comp_lift[v]) for f in cross.families) + " |"
-        lines.append(row)
-    lines.append("")
-    for f in cross.families:
-        lines.append("- family `%s` (%d readers): reversal %s"
-                     % (f.family, len(f.readers),
-                        "holds ✓" if f.reversal_holds else "absent ✗"))
-    lines.append("")
-    return "\n".join(lines)
 
-
-def render_report_md(book: ScoreBook, h1: H1Analysis,
-                     cross: Optional[CrossFamilyAnalysis] = None) -> str:
-    lines: List[str] = ["# Glass Box — comprehension vs preference (H1)", ""]
-    lines.append("Readers: " + ", ".join("`%s`" % r for r in book.readers))
-    lines.append("")
+def render_report_md(
+    book: ScoreBook, h1: H1Analysis, cross: Optional[CrossFamilyAnalysis] = None
+) -> str:
+    target = h1.judge.score_label
+    lines = [
+        "# Glass Box: MCQ lift vs %s (H1)" % target,
+        "",
+        "Readers: " + ", ".join("`%s`" % r for r in book.readers),
+        "",
+    ]
     if h1.simulated:
-        lines.append(SIMULATED_CAVEAT)
-        lines.append("")
-
-    verdict = ("preference and comprehension diverge"
-               if h1.divergence_found else "no divergence detected")
-    lines.append("**Headline:** %s — mean Spearman(preference, comprehension) = %.2f "
-                 "across %d scenario(s)." % (verdict, h1.mean_spearman, len(h1.scenarios)))
-    lines.append("")
-
-    label = {sh.scenario_id: sh for sh in h1.scenarios}
-    for sid in book.scenarios:
-        sh = label[sid]
-        lines.append("## %s" % sid)
-        lines.append("")
-        lines.append("Spearman(pref, comp) = **%.2f** · cross-reader agreement = %.2f"
-                     % (sh.spearman, sh.reader_agreement))
-        lines.append("")
-        lines.append("| interface | comprehension lift | mean accuracy | preference | understood rank | preferred rank |")
-        lines.append("|---|---:|---:|---:|:---:|:---:|")
+        lines.extend([SIMULATED_CAVEAT, ""])
+    elif h1.any_reader_simulated:
+        lines.extend(
+            [
+                "> **Mixed readers.** Some scores come from designed synthetic fixtures.",
+                "",
+            ]
+        )
+    lines.append(
+        "Judge: `%s`; target **%s**; modality `%s`; protocol `%s`; comparisons %d."
+        % (
+            h1.judge.name,
+            target,
+            h1.judge.modality,
+            h1.judge.protocol,
+            h1.judge.comparison_count,
+        )
+    )
+    if h1.judge.simulated:
+        lines.append(
+            "> **Synthetic judge.** These scores use fixed fixture rules, including when readers are real."
+        )
+    lines.append(
+        "All components declared deterministic: **%s**."
+        % ("yes" if h1.deterministic else "no")
+    )
+    lines.extend(
+        [
+            "",
+            "Judge score and MCQ lift: **%s**; mean Spearman %s across %d scenarios."
+            % (
+                "a reversal is present"
+                if h1.divergence_found
+                else "no reversal detected",
+                _corr(h1.mean_spearman),
+                len(h1.scenarios),
+            ),
+            "",
+        ]
+    )
+    for sh in h1.scenarios:
+        lines.extend(
+            [
+                "## %s" % sh.scenario_id,
+                "",
+                "Spearman(judge, lift) = **%s**; reader agreement = **%s**."
+                % (_corr(sh.spearman), _corr(sh.reader_agreement)),
+                "",
+                "| interface | MCQ lift | accuracy | %s | lift rank | judge rank |"
+                % target,
+                "|---|---:|---:|---:|:---:|:---:|",
+            ]
+        )
         for row in sorted(sh.rows, key=lambda r: r.comp_rank):
-            lines.append("| %s | %s | %.0f%% | %.2f | %d | %d |"
-                         % (row.variant, _pct(row.comp_lift), row.mean_accuracy * 100,
-                            row.pref_score, row.comp_rank, row.pref_rank))
+            lines.append(
+                "| %s | %s | %.0f%% | %.2f | %d | %d |"
+                % (
+                    row.variant,
+                    _pct(row.comp_lift),
+                    row.mean_accuracy * 100,
+                    row.pref_score,
+                    row.comp_rank,
+                    row.pref_rank,
+                )
+            )
         lines.append("")
-        if sh.reversals:
-            for rv in sh.reversals:
-                lines.append("- **Reversal:** `%s` is preferred over `%s` (preference "
-                             "+%.2f) yet transfers **less** understanding "
-                             "(comprehension %s)." % (rv.preferred, rv.understood,
-                                                      rv.pref_gap, _pct(-rv.comp_gap)))
-        else:
-            lines.append("- No reversal: preference and comprehension agree here.")
+        for rv in sh.reversals:
+            lines.append(
+                "- **Reversal:** `%s` scores above `%s` on %s (+%.2f), with lower MCQ lift (%s)."
+                % (rv.preferred, rv.understood, target, rv.pref_gap, _pct(-rv.comp_gap))
+            )
+        if not sh.reversals:
+            lines.append("No reversed pair.")
         lines.append("")
     if cross is not None:
         lines.append(render_cross_family_md(cross))
     return "\n".join(lines)
 
 
-def write_run(out_dir: str, scenarios: Sequence[Scenario],
-              results: Sequence[QuestionResult], book: ScoreBook, h1: H1Analysis,
-              cross: CrossFamilyAnalysis, skip_render: bool,
-              study: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
-    os.makedirs(out_dir, exist_ok=True)
-    results_path = os.path.join(out_dir, "results.json")
-    report_path = os.path.join(out_dir, "report.md")
+def write_run(
+    out_dir: str,
+    scenarios: Sequence[Scenario],
+    results: Sequence[QuestionResult],
+    book: ScoreBook,
+    h1: H1Analysis,
+    cross: CrossFamilyAnalysis,
+    skip_render: bool,
+    study: Optional[Dict[str, Any]] = None,
+    *,
+    protected_paths: Sequence[str] = (),
+) -> Dict[str, str]:
+    results_path, report_path = _destinations(
+        out_dir, ("results.json", "report.md"), protected_paths
+    )
     with open(results_path, "w", encoding="utf-8") as fh:
-        _dump(build_results(scenarios, results, book, h1, cross, skip_render, study), fh)
+        _dump(
+            build_results(scenarios, results, book, h1, cross, skip_render, study), fh
+        )
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_report_md(book, h1, cross))
     return {"results": results_path, "report": report_path}
@@ -227,10 +376,15 @@ def write_run(out_dir: str, scenarios: Sequence[Scenario],
 
 # --- transcript.md (repair) -------------------------------------------------
 
-def render_transcript_md(result: RepairResult, scenario: Scenario, question: Question) -> str:
-    lines: List[str] = ["# Repair transcript (H4) — turns to understanding", ""]
-    lines.append("Scenario `%s` · reader `%s` · question `%s`"
-                 % (result.scenario_id, result.reader, result.question_id))
+
+def render_transcript_md(
+    result: RepairResult, scenario: Scenario, question: Question
+) -> str:
+    lines: List[str] = ["# Repair transcript (H4): answer accuracy", ""]
+    lines.append(
+        "Scenario `%s` · reader `%s` · question `%s`"
+        % (result.scenario_id, result.reader, result.question_id)
+    )
     lines.append("")
     lines.append("> %s" % question.stem)
     correct_text = next(c.text for c in question.choices if c.id == question.answer)
@@ -241,35 +395,53 @@ def render_transcript_md(result: RepairResult, scenario: Scenario, question: Que
         lines.append(SIMULATED_CAVEAT)
         lines.append("")
     for t in result.turns:
-        chosen_text = next((c.text for c in question.choices if c.id == t.chosen), "—")
+        chosen_text = next(
+            (c.text for c in question.choices if c.id == t.chosen), "unknown"
+        )
         mark = "✓ understood" if t.correct else "✗ wrong"
-        header = "**Turn %d** — interface `%s` (%s)" % (t.turn, t.variant, ", ".join(t.features))
+        header = "**Turn %d**: interface `%s` (%s)" % (
+            t.turn,
+            t.variant,
+            ", ".join(t.features),
+        )
         if t.transform:
-            header += " — repair: *%s*" % t.transform
+            header += "; repair: *%s*" % t.transform
         lines.append(header)
         lines.append("")
         lines.append("- reader chose: %s → %s" % (chosen_text, mark))
         lines.append("")
     if result.converged:
-        lines.append("**Result:** understood after **%d** repair turn(s)."
-                     % result.turns_to_understanding)
+        lines.append(
+            "**Result:** understood after **%d** repair turn(s)."
+            % result.turns_to_understanding
+        )
     else:
         lines.append("**Result:** did not converge within the turn budget.")
     return "\n".join(lines)
 
 
-def write_repair(out_dir: str, result: RepairResult, scenario: Scenario,
-                 question: Question) -> Dict[str, str]:
-    os.makedirs(out_dir, exist_ok=True)
-    transcript_path = os.path.join(out_dir, "transcript.md")
-    json_path = os.path.join(out_dir, "repair.json")
+def write_repair(
+    out_dir: str,
+    result: RepairResult,
+    scenario: Scenario,
+    question: Question,
+    *,
+    protected_paths: Sequence[str] = (),
+) -> Dict[str, str]:
+    transcript_path, json_path = _destinations(
+        out_dir, ("transcript.md", "repair.json"), protected_paths
+    )
     with open(transcript_path, "w", encoding="utf-8") as fh:
         fh.write(render_transcript_md(result, scenario, question))
     with open(json_path, "w", encoding="utf-8") as fh:
-        payload = {"scenario": result.scenario_id, "reader": result.reader,
-                   "question": result.question_id, "converged": result.converged,
-                   "turns_to_understanding": result.turns_to_understanding,
-                   "turns": [t.__dict__ for t in result.turns]}
+        payload = {
+            "scenario": result.scenario_id,
+            "reader": result.reader,
+            "question": result.question_id,
+            "converged": result.converged,
+            "turns_to_understanding": result.turns_to_understanding,
+            "turns": [t.__dict__ for t in result.turns],
+        }
         _dump(payload, fh)
     return {"transcript": transcript_path, "repair": json_path}
 
@@ -278,19 +450,19 @@ def write_repair(out_dir: str, result: RepairResult, scenario: Scenario,
 
 ANCHOR_FIXTURE_CAVEAT = (
     "> **Fixture anchor set.** The human numbers here are synthetic, invented only to "
-    "verify the harness. This is **not** an H3 result — replace with published CALVI / "
-    "Cleveland & McGill per-item human accuracy for a real anchor run."
+    "verify the harness. This is a fixture check. Use verified per-item human accuracy for a human comparison: "
+    "declare its source and conditions."
 )
 
 
 def _corr(x: float) -> str:
-    return "—" if x != x else "%.2f" % x  # nan -> em dash
+    return "undefined" if not math.isfinite(x) else "%.2f" % x  # undefined correlation
 
 
 def render_anchor_md(result: AnchorResult) -> str:
     a = result.anchor
-    lines: List[str] = ["# Glass Box — H3 anchoring (model reader vs human)", ""]
-    lines.append("Anchor set: `%s` — %s" % (a.id, a.source))
+    lines: List[str] = ["# Glass Box: model and human accuracy (H3)", ""]
+    lines.append("Anchor set: `%s`; %s" % (a.id, a.source))
     lines.append("Readers: " + ", ".join("`%s`" % r for r in result.readers))
     lines.append("Condition: readers see the `%s` presentation." % a.condition)
     lines.append("")
@@ -300,100 +472,187 @@ def render_anchor_md(result: AnchorResult) -> str:
     if result.readers and all(r.startswith("simulated:") for r in result.readers):
         lines.append(SIMULATED_CAVEAT)  # model side is simulated, too
         lines.append("")
-    lines.append("**Correlation (model vs human accuracy, %d items):** Spearman %s · "
-                 "Pearson %s · Kendall %s." % (result.n_items, _corr(result.spearman),
-                                               _corr(result.pearson), _corr(result.kendall)))
+    lines.append(
+        "**Correlation (model vs human accuracy, %d items):** Spearman %s · "
+        "Pearson %s · Kendall %s."
+        % (
+            result.n_items,
+            _corr(result.spearman),
+            _corr(result.pearson),
+            _corr(result.kendall),
+        )
+    )
     lines.append("")
     lines.append("| item | human | model | gap |")
     lines.append("|---|---:|---:|---:|")
     for p in result.points:
-        lines.append("| %s/%s | %.0f%% | %.0f%% | %.0f%% |"
-                     % (p.scenario, p.question, p.human_accuracy * 100,
-                        p.model_accuracy * 100, p.abs_gap * 100))
+        lines.append(
+            "| %s/%s | %.0f%% | %.0f%% | %.0f%% |"
+            % (
+                p.scenario,
+                p.question,
+                p.human_accuracy * 100,
+                p.model_accuracy * 100,
+                p.abs_gap * 100,
+            )
+        )
     lines.append("")
     lines.append("**Where the proxy breaks (largest gaps):**")
     for p in result.breaks():
-        lines.append("- `%s/%s` — human %.0f%% vs model %.0f%% (gap %.0f pts)"
-                     % (p.scenario, p.question, p.human_accuracy * 100,
-                        p.model_accuracy * 100, p.abs_gap * 100))
+        lines.append(
+            "- `%s/%s`: human %.0f%% vs model %.0f%% (gap %.0f pts)"
+            % (
+                p.scenario,
+                p.question,
+                p.human_accuracy * 100,
+                p.model_accuracy * 100,
+                p.abs_gap * 100,
+            )
+        )
     lines.append("")
     return "\n".join(lines)
 
 
-def write_anchor(out_dir: str, result: AnchorResult) -> Dict[str, str]:
-    os.makedirs(out_dir, exist_ok=True)
-    report_path = os.path.join(out_dir, "anchor.md")
-    json_path = os.path.join(out_dir, "anchor.json")
+def write_anchor(
+    out_dir: str, result: AnchorResult, *, protected_paths: Sequence[str] = ()
+) -> Dict[str, str]:
+    report_path, json_path = _destinations(
+        out_dir, ("anchor.md", "anchor.json"), protected_paths
+    )
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_anchor_md(result))
     with open(json_path, "w", encoding="utf-8") as fh:
-        _dump({
-            "anchor_id": result.anchor.id, "source": result.anchor.source,
-            "is_fixture": result.anchor.is_fixture, "condition": result.anchor.condition,
-            "readers": result.readers,
-            "correlations": {"spearman": result.spearman, "pearson": result.pearson,
-                             "kendall": result.kendall},
-            "points": [p.__dict__ for p in result.points],
-        }, fh)
+        _dump(
+            {
+                "anchor_id": result.anchor.id,
+                "source": result.anchor.source,
+                "is_fixture": result.anchor.is_fixture,
+                "condition": result.anchor.condition,
+                "readers": result.readers,
+                "correlations": {
+                    "spearman": result.spearman,
+                    "pearson": result.pearson,
+                    "kendall": result.kendall,
+                },
+                "points": [p.__dict__ for p in result.points],
+            },
+            fh,
+        )
     return {"report": report_path, "anchor": json_path}
 
 
 # --- optimize report (M4, offline generator search) -------------------------
 
 OPTIMIZE_CAVEAT = (
-    "> **Offline search generator.** The \"generator\" here is an exhaustive search over "
-    "the interface feature-lattice, not a trained model — it proves the comprehension "
-    "reward is optimizable. The real generator (SFT → GRPO on a VLM) is gated on paid "
-    "training (Tinker credits + GPU)."
+    "> **In-sample feature search.** Candidate selection and reported scores use the "
+    "same scenarios, questions and readers. A fresh plain-text baseline is sampled "
+    "for every candidate and the cards comparison. There is no held-out evaluation "
+    "or trained generator result. Model-family exclusion and restricted features "
+    "do not prove resistance to answer leakage or reward gaming."
 )
 
 
-def render_optimize_md(ev: EvalResult, readers: Sequence[str],
-                       training: Optional[Dict[str, Any]] = None) -> str:
-    lines: List[str] = ["# Glass Box — comprehension-optimized interface (M4)", ""]
-    lines.append("Readers scoring the reward: " + ", ".join("`%s`" % r for r in readers))
+def render_optimize_md(
+    ev: EvalResult, readers: Sequence[str], training: Optional[Dict[str, Any]] = None
+) -> str:
+    lines: List[str] = ["# Glass Box: in-sample feature search (M4)", ""]
+    lines.append(
+        "Readers scoring the reward: " + ", ".join("`%s`" % r for r in readers)
+    )
     lines.append("")
     lines.append(OPTIMIZE_CAVEAT)
     lines.append("")
-    if readers and all(r.startswith("simulated:") for r in readers):
+    if ev.all_readers_simulated:
         lines.append(SIMULATED_CAVEAT)  # the reward numbers come from designed fixtures
         lines.append("")
-    lines.append("**Generator selected:** `%s`" % (", ".join(sorted(ev.generator_features)) or "(none)"))
+    elif ev.any_reader_simulated:
+        lines.extend(
+            ["> **Mixed readers.** Some rewards come from synthetic fixtures.", ""]
+        )
+    lines.append(
+        "Protocol `%s`; %d candidates; %d scenarios; %d readers; baseline `%s`."
+        % (
+            ev.selection_protocol,
+            ev.candidate_count,
+            ev.scenario_count,
+            ev.reader_count,
+            ev.baseline_sampling,
+        )
+    )
+    lines.append("")
+    lines.append(
+        "**Generator selected:** `%s`"
+        % (", ".join(sorted(ev.generator_features)) or "(none)")
+    )
     lines.append("")
     lines.append("| interface | comprehension lift |")
     lines.append("|---|---:|")
     lines.append("| generator (reward-optimized) | %s |" % _pct(ev.generator_reward))
-    lines.append("| polished cards (preference-tuned analog) | %s |" % _pct(ev.cards_reward))
+    lines.append("| fixed polished cards | %s |" % _pct(ev.cards_reward))
     lines.append("| plain-text baseline | +0 pts |")
     lines.append("")
-    lines.append("**Verdict:** beats the preference-tuned baseline on comprehension: **%s** · "
-                 "beats plain text: **%s**."
-                 % ("yes" if ev.beats_preference_tuned else "no",
-                    "yes" if ev.beats_plaintext else "no"))
+    lines.append(
+        "Higher in-sample lift than fixed cards: **%s**; "
+        "positive measured plain-text lift: **%s**."
+        % (
+            "yes" if ev.beats_preference_tuned else "no",
+            "yes" if ev.beats_plaintext else "no",
+        )
+    )
     lines.append("")
     if training is not None:
         state = "ready to run" if not training["errors"] else "BLOCKED"
-        lines.append("**Training plan** `%s` — %s. Pre-run validation: %s."
-                     % (training["id"], training["status"], state))
+        lines.append(
+            "**Training plan** `%s`: %s. Pre-run validation: %s."
+            % (training["id"], training["status"], state)
+        )
         for e in training["errors"]:
             lines.append("- ✗ %s" % e)
         lines.append("")
     return "\n".join(lines)
 
 
-def write_optimize(out_dir: str, ev: EvalResult, readers: Sequence[str],
-                   training: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
-    os.makedirs(out_dir, exist_ok=True)
-    report_path = os.path.join(out_dir, "optimize.md")
-    json_path = os.path.join(out_dir, "optimize.json")
+def write_optimize(
+    out_dir: str,
+    ev: EvalResult,
+    readers: Sequence[str],
+    training: Optional[Dict[str, Any]] = None,
+    *,
+    protected_paths: Sequence[str] = (),
+) -> Dict[str, str]:
+    report_path, json_path = _destinations(
+        out_dir, ("optimize.md", "optimize.json"), protected_paths
+    )
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_optimize_md(ev, readers, training))
     with open(json_path, "w", encoding="utf-8") as fh:
-        _dump({
-            "generator_features": sorted(ev.generator_features),
-            "generator_reward": ev.generator_reward, "cards_reward": ev.cards_reward,
-            "beats_preference_tuned": ev.beats_preference_tuned,
-            "beats_plaintext": ev.beats_plaintext, "readers": list(readers),
-            "training": training,
-        }, fh)
+        _dump(
+            {
+                "generator_features": sorted(ev.generator_features),
+                "generator_reward": ev.generator_reward,
+                "cards_reward": ev.cards_reward,
+                "beats_preference_tuned": ev.beats_preference_tuned,
+                "beats_plaintext": ev.beats_plaintext,
+                "readers": list(readers),
+                "selection_protocol": ev.selection_protocol,
+                "baseline_sampling": ev.baseline_sampling,
+                "candidate_count": ev.candidate_count,
+                "scenario_count": ev.scenario_count,
+                "reader_count": ev.reader_count,
+                "all_readers_simulated": ev.all_readers_simulated,
+                "any_reader_simulated": ev.any_reader_simulated,
+                "training": training,
+            },
+            fh,
+        )
     return {"report": report_path, "optimize": json_path}
+
+
+def _destinations(
+    out_dir: str, names: Sequence[str], protected_paths: Sequence[str]
+) -> List[str]:
+    from .output_paths import validate_output_files
+
+    paths = validate_output_files(out_dir, names, protected_paths=protected_paths)
+    os.makedirs(paths[0].parent, exist_ok=True)
+    return [str(path) for path in paths]

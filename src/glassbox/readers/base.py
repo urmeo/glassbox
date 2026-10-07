@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, List, Mapping, Optional
 
+from ..answer_parsing import parse_choice_letter
 from ..prompts import load_prompt
 from ..schema import Question, Scenario
 from ..stimuli import Stimulus
@@ -14,9 +15,11 @@ from ..stimuli import Stimulus
 @dataclass(frozen=True)
 class Answer:
     """A reader's response to one question."""
-    choice_id: Optional[str]   # the chosen choice id, or None if unparseable
-    method: str = ""           # how it was derived ("read"/"computed"/"headline"/"guess"/"api")
-    raw: str = ""              # raw model output, for real readers
+
+    choice_id: Optional[str]  # the chosen choice id, or None if unparseable
+    method: str = ""  # how it was derived ("read"/"computed"/"headline"/"guess"/"api")
+    raw: str = ""  # raw model output, for real readers
+    prompt_sha256: Optional[str] = None
 
 
 class Reader:
@@ -25,15 +28,24 @@ class Reader:
     name: str = "reader"
     family: str = ""
     simulated: bool = False
+    deterministic: Optional[bool] = None
+    provider: str = "unknown"
+    model_family: str = "unknown"
+    family_resolved: bool = False
+    family_basis: str = "unknown"
 
-    def answer(self, scenario: Scenario, question: Question, stimulus: Stimulus) -> Answer:
+    def answer(
+        self, scenario: Scenario, question: Question, stimulus: Stimulus
+    ) -> Answer:
         raise NotImplementedError
 
 
-# --- shared: apply a question's op to a set of per-item values ---------------
+# Shared question operations.
 
-def apply_op(compute_spec: Mapping[str, Any], values: Mapping[str, Any],
-             order: List[str]) -> Any:
+
+def apply_op(
+    compute_spec: Mapping[str, Any], values: Mapping[str, Any], order: List[str]
+) -> Any:
     """Apply argmin/argmax/rank/count_* to ``values`` (item id -> value)."""
     op = compute_spec["op"]
     if op in ("argmin", "argmax"):
@@ -70,55 +82,44 @@ def guess_choice(question: Question) -> str:
     return question.choices[0].id
 
 
-# --- shared: MCQ prompt building and answer parsing (real readers) -----------
+# Shared MCQ formatting and parsing.
+
 
 def _letter(index: int) -> str:
     return chr(ord("A") + index)
 
 
 def build_mcq_prompt(question: Question, stimulus: Stimulus, image: bool) -> str:
-    """Render the MCQ prompt. Choices are lettered A, B, C … for a terse reply.
-
-    In image mode the interface is the picture; otherwise its text is inlined so a
-    real reader can still answer with ``--skip-render`` and no browser.
-    """
+    """Format lettered choices with the image or inline interface text."""
+    if not 2 <= len(question.choices) <= 26:
+        raise ValueError("MCQ prompts require between 2 and 26 choices")
     template = load_prompt("reader_mcq")
-    options = "\n".join("%s. %s" % (_letter(i), c.text) for i, c in enumerate(question.choices))
-    context_block = "" if image else ("The interface is shown below as text:\n\n"
-                                       + stimulus.text + "\n\n")
+    options = "\n".join(
+        "%s. %s" % (_letter(i), c.text) for i, c in enumerate(question.choices)
+    )
+    context_block = (
+        ""
+        if image
+        else ("The interface is shown below as text:\n\n" + stimulus.text + "\n\n")
+    )
     # Single pass so a literal "{options}" in a stem or interface text is not re-substituted.
     fields = {"context_block": context_block, "stem": question.stem, "options": options}
-    return re.sub(r"\{(context_block|stem|options)\}", lambda m: fields[m.group(1)], template)
+    return re.sub(
+        r"\{(context_block|stem|options)\}", lambda m: fields[m.group(1)], template
+    )
 
 
 def parse_choice(reply: str, question: Question) -> Optional[str]:
-    """Map a model's free-text reply to a choice id, or None if unparseable."""
-    text = (reply or "").strip()
-    if not text:
+    """Map a declared letter or exact authored choice text to its ID."""
+    letters = [_letter(index) for index in range(len(question.choices))]
+    chosen = parse_choice_letter(reply, letters)
+    if chosen is not None:
+        return question.choices[letters.index(chosen)].id
+    if not isinstance(reply, str):
         return None
-    letters = [_letter(i) for i in range(len(question.choices))]
-
-    # 1. A leading option letter ("A", "A.", "A) Offer A", "a").
-    m = re.match(r"\s*([A-Za-z])\b", text)
-    if m and m.group(1).upper() in letters:
-        return question.choices[letters.index(m.group(1).upper())].id
-
-    # 2. "answer is X" / "option X" / "choice: X".
-    m = re.search(r"(?:answer|option|choice)\s*(?:is|:|=)?\s*([A-Za-z])\b", text, re.I)
-    if m and m.group(1).upper() in letters:
-        return question.choices[letters.index(m.group(1).upper())].id
-
-    # 3. A standalone option letter elsewhere — prefer the LAST one. A reasoning reply
-    #    concludes with its pick, so "…Offer C's total vs B, I'd pick B" must resolve to
-    #    B, not the first-mentioned C (which would silently mis-score a correct reader).
-    hits = [mm.group(1) for mm in re.finditer(r"\b([A-Z])\b", text) if mm.group(1) in letters]
-    if hits:
-        return question.choices[letters.index(hits[-1])].id
-
-    # 4. Fall back to matching the choice's own text (longest match wins).
-    low = text.lower()
-    hits = [c for c in question.choices if c.text.lower() in low]
-    if hits:
-        return max(hits, key=lambda c: len(c.text)).id
-
-    return None
+    hits = [
+        choice.id
+        for choice in question.choices
+        if choice.text.casefold() == reply.strip().casefold()
+    ]
+    return hits[0] if len(hits) == 1 else None

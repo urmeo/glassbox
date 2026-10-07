@@ -1,69 +1,78 @@
-"""Readers — the models (real or simulated) that answer questions from a stimulus.
-
-A reader is named ``family:model`` (for example ``simulated:literal``,
-``anthropic:claude-sonnet-5``, ``openrouter:qwen/qwen3-vl-8b-instruct``). Simulated
-readers are deterministic fixtures that make the whole pipeline verifiable offline;
-real readers call a vision API, read no keys from disk, and are only exercised when a
-key is present in the environment.
-"""
+"""Reader construction and pure specification validation."""
 
 from __future__ import annotations
 
 from typing import List
 
+from .._config import strings, text
 from .base import Answer, Reader
 from .simulated import SIMULATED_PERSONAS, SimulatedReader
 
 
-def _split(spec: str):
-    family, _, model = spec.partition(":")
-    return family, model
+def validate_reader_spec(spec: str, *, shorthand: bool = False) -> str:
+    """Validate provider/model syntax without accessing credentials or the network."""
+    spec = text(spec, "reader spec")
+    if shorthand and spec == "simulated":
+        return spec
+    provider, separator, model = spec.partition(":")
+    provider, model = provider.lower(), model.strip()
+    if not separator or provider not in {
+        "simulated",
+        "anthropic",
+        "openai",
+        "openrouter",
+    }:
+        raise ValueError("unknown reader provider in spec %r" % spec)
+    if not model or any(character.isspace() for character in model):
+        raise ValueError(
+            "reader spec needs a nonempty model/persona without whitespace"
+        )
+    if provider == "simulated" and model not in SIMULATED_PERSONAS:
+        raise ValueError("unknown simulated persona %r" % model)
+    return provider + ":" + model
 
 
 def build_reader(spec: str) -> Reader:
-    """Construct a reader from a ``family:model`` spec string.
-
-    ``simulated`` (with no persona) is rejected here — expand it with
-    :func:`expand_reader_specs` first so the caller controls the persona set.
-    """
-    family, model = _split(spec)
-    if family == "simulated":
-        if not model:
-            raise ValueError("use 'simulated:<persona>' (one of %s)"
-                             % ", ".join(SIMULATED_PERSONAS))
+    spec = validate_reader_spec(spec)
+    provider, model = spec.split(":", 1)
+    if provider == "simulated":
         return SimulatedReader(model)
-    if family == "anthropic":
+    if provider == "anthropic":
         from .anthropic import AnthropicReader
+
         return AnthropicReader(model)
-    if family in ("openrouter", "openai"):
-        from .openai_compat import OpenAICompatReader
-        return OpenAICompatReader(family, model)
-    raise ValueError("unknown reader family %r in spec %r" % (family, spec))
+    from .openai_compat import OpenAICompatReader
+
+    return OpenAICompatReader(provider, model)
 
 
 def expand_reader_specs(specs: List[str]) -> List[str]:
-    """Expand shorthand specs. Bare ``simulated`` becomes every simulated persona."""
-    out: List[str] = []
+    """Expand simulated shorthand; repetition is controlled through replicates."""
+    specs = strings(specs, "readers")
+    out = []
     for spec in specs:
-        if spec == "simulated":
-            out.extend("simulated:" + p for p in SIMULATED_PERSONAS)
-        else:
-            out.append(spec)
-    # de-duplicate, preserving order
-    seen = set()
-    unique = []
-    for s in out:
-        if s not in seen:
-            seen.add(s)
-            unique.append(s)
-    return unique
+        spec = validate_reader_spec(spec, shorthand=True)
+        out.extend(
+            ["simulated:" + persona for persona in SIMULATED_PERSONAS]
+            if spec == "simulated"
+            else [spec]
+        )
+    if len(set(out)) != len(out):
+        raise ValueError("readers contain duplicate expanded specs")
+    return out
 
 
 def build_readers(specs: List[str]) -> List[Reader]:
-    return [build_reader(s) for s in expand_reader_specs(specs)]
+    return [build_reader(spec) for spec in expand_reader_specs(specs)]
 
 
 __all__ = [
-    "Answer", "Reader", "SimulatedReader", "SIMULATED_PERSONAS",
-    "build_reader", "build_readers", "expand_reader_specs",
+    "Answer",
+    "Reader",
+    "SimulatedReader",
+    "SIMULATED_PERSONAS",
+    "build_reader",
+    "build_readers",
+    "expand_reader_specs",
+    "validate_reader_spec",
 ]

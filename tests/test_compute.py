@@ -13,7 +13,7 @@ class TestSafeExpression(unittest.TestCase):
         self.assertEqual(compute.evaluate_expr("-5 + 2", {}), -3)
 
     def test_power_operator_rejected(self):
-        # Exponentiation is excluded — `9**9**9` must not be evaluable (compute-DoS).
+        # Exponentiation is excluded: `9**9**9` must not be evaluable (compute-DoS).
         with self.assertRaises(compute.ExpressionError):
             compute.evaluate_expr("2 ** 3", {})
 
@@ -34,7 +34,7 @@ class TestSafeExpression(unittest.TestCase):
             compute.evaluate_expr("mystery + 1", {"known": 1})
 
     def test_code_injection_rejected(self):
-        # None of these are arithmetic — the evaluator must refuse them all.
+        # None of these are arithmetic: the evaluator must refuse them all.
         for evil in (
             "__import__('os').system('echo hi')",
             "().__class__",
@@ -63,27 +63,45 @@ class TestComputeOps(unittest.TestCase):
         }
 
     def test_argmin_argmax(self):
-        self.assertEqual(compute.compute_answer_value(self.data, {"op": "argmin", "field": "x"}), "B")
-        self.assertEqual(compute.compute_answer_value(self.data, {"op": "argmax", "field": "x"}), "C")
+        self.assertEqual(
+            compute.compute_answer_value(self.data, {"op": "argmin", "field": "x"}), "B"
+        )
+        self.assertEqual(
+            compute.compute_answer_value(self.data, {"op": "argmax", "field": "x"}), "C"
+        )
 
     def test_rank(self):
         self.assertEqual(
-            compute.compute_answer_value(self.data, {"op": "rank", "field": "x", "k": 2, "order": "asc"}),
+            compute.compute_answer_value(
+                self.data, {"op": "rank", "field": "x", "k": 2, "order": "asc"}
+            ),
             "A",
         )
         self.assertEqual(
-            compute.compute_answer_value(self.data, {"op": "rank", "field": "x", "k": 1, "order": "desc"}),
+            compute.compute_answer_value(
+                self.data, {"op": "rank", "field": "x", "k": 1, "order": "desc"}
+            ),
             "C",
         )
 
     def test_count_ops(self):
         self.assertEqual(
-            compute.compute_answer_value(self.data, {"op": "count_gt", "field": "x", "threshold": 11000}), 2)
+            compute.compute_answer_value(
+                self.data, {"op": "count_gt", "field": "x", "threshold": 11000}
+            ),
+            2,
+        )
         self.assertEqual(
-            compute.compute_answer_value(self.data, {"op": "count_le", "field": "x", "threshold": 10914}), 1)
+            compute.compute_answer_value(
+                self.data, {"op": "count_le", "field": "x", "threshold": 10914}
+            ),
+            1,
+        )
 
     def test_derived_field_in_op(self):
-        self.assertEqual(compute.compute_answer_value(self.data, {"op": "argmin", "field": "half"}), "B")
+        self.assertEqual(
+            compute.compute_answer_value(self.data, {"op": "argmin", "field": "half"}), "B"
+        )
 
 
 class TestRecompute(unittest.TestCase):
@@ -105,6 +123,50 @@ class TestRecompute(unittest.TestCase):
         }
         with self.assertRaises(ValueError):
             compute.recompute(data, question)
+
+
+class TestFiniteCompute(unittest.TestCase):
+    def test_nonfinite_expression_constants_inputs_and_results_reject(self):
+        for expression, fields in (
+            ("1e309", {}),
+            ("x + 1", {"x": float("nan")}),
+            ("x * 2", {"x": 1e308}),
+            ("x", {"x": True}),
+            ("x", {"x": 1 << 2000}),
+        ):
+            with self.subTest(expression=expression), self.assertRaises(compute.ExpressionError):
+                compute.evaluate_expr(expression, fields)
+        with self.assertRaises(compute.ExpressionError):
+            compute.evaluate_expr("1" * 10001, {})
+
+    def test_direct_specs_reject_rank_coercion_invalid_order_and_bad_targets(self):
+        data = {"items": [{"id": "A", "x": 1}, {"id": "B", "x": 2}]}
+        for k in (True, 0, 1.5, "1", 3):
+            with self.subTest(k=k), self.assertRaises(ValueError):
+                compute.compute_answer_value(data, {"op": "rank", "field": "x", "k": k})
+        with self.assertRaises(ValueError):
+            compute.compute_answer_value(data, {"op": "rank", "field": "x", "k": 1, "order": "bad"})
+        for value in (True, "1", float("nan"), float("inf")):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                compute.compute_answer_value(
+                    {"items": [{"id": "A", "x": value}]}, {"op": "argmin", "field": "x"}
+                )
+            with self.assertRaises(ValueError):
+                compute.compute_answer_value(
+                    data, {"op": "count_gt", "field": "x", "threshold": value}
+                )
+
+    def test_empty_data_and_ambiguous_choice_mapping_reject(self):
+        with self.assertRaises(ValueError):
+            compute.compute_answer_value({"items": []}, {"op": "argmin", "field": "x"})
+        with self.assertRaises(ValueError):
+            compute.recompute(
+                {"items": [{"id": "A", "x": 1}]},
+                {
+                    "compute": {"op": "argmin", "field": "x"},
+                    "choices": [{"id": "a", "value": "A"}, {"id": "b", "value": "A"}],
+                },
+            )
 
 
 if __name__ == "__main__":

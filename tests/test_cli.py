@@ -1,4 +1,4 @@
-"""CLI — the offline end-to-end path that scripts/verify.sh exercises."""
+"""CLI; the offline end-to-end path that scripts/verify.sh exercises."""
 
 import json
 import os
@@ -15,7 +15,10 @@ class TestCLI(unittest.TestCase):
     def test_run_offline_writes_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = os.path.join(tmp, "run")
-            self.assertEqual(main(["run", "--readers", "simulated", "--skip-render", "--out", out]), 0)
+            self.assertEqual(
+                main(["run", "--readers", "simulated", "--skip-render", "--out", out]),
+                0,
+            )
             self.assertTrue(os.path.isfile(os.path.join(out, "report.md")))
             with open(os.path.join(out, "results.json")) as fh:
                 data = json.load(fh)
@@ -26,8 +29,20 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = os.path.join(tmp, "run")
             self.assertEqual(
-                main(["run", "--readers", "simulated", "--scenarios", "loans",
-                      "--skip-render", "--out", out]), 0)
+                main(
+                    [
+                        "run",
+                        "--readers",
+                        "simulated",
+                        "--scenarios",
+                        "loans",
+                        "--skip-render",
+                        "--out",
+                        out,
+                    ]
+                ),
+                0,
+            )
             with open(os.path.join(out, "results.json")) as fh:
                 data = json.load(fh)
             self.assertEqual(list(data["metrics"].keys()), ["loans"])
@@ -36,14 +51,30 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = os.path.join(tmp, "repair")
             self.assertEqual(
-                main(["repair", "--scenario", "loans", "--reader", "simulated:literal",
-                      "--skip-render", "--out", out]), 0)
+                main(
+                    [
+                        "repair",
+                        "--scenario",
+                        "loans",
+                        "--reader",
+                        "simulated:literal",
+                        "--skip-render",
+                        "--out",
+                        out,
+                    ]
+                ),
+                0,
+            )
             self.assertTrue(os.path.isfile(os.path.join(out, "transcript.md")))
 
     def test_unknown_scenario_errors(self):
-        with self.assertRaises(SystemExit):
-            main(["run", "--scenarios", "nonexistent", "--skip-render",
-                  "--out", tempfile.mkdtemp()])
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(
+                main(
+                    ["run", "--scenarios", "nonexistent", "--skip-render", "--out", tmp]
+                ),
+                2,
+            )
 
 
 if __name__ == "__main__":

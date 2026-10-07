@@ -1,22 +1,20 @@
-"""Data integrity — recompute every answer key from source and confirm it matches.
-
-This is the guarantee behind "no unverifiable answer keys" (a project success
-criterion). ``glassbox validate`` runs :func:`validate_all`; so does the test suite
-and ``scripts/verify.sh``. A scenario whose authored ``answer`` disagrees with the
-value recomputed from its data is a hard failure, not a warning.
-"""
+"""Validate task structure and recompute authored answers from source values."""
 
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
 from . import compute
-from .schema import Scenario, load_all_scenarios
+from .schema import Scenario, SchemaError, load_all_scenarios, validate_structure
 
 
 def validate_scenario(scenario: Scenario) -> List[str]:
     """Return a list of integrity errors for one scenario (empty means clean)."""
     errors: List[str] = []
+    try:
+        validate_structure(scenario)
+    except SchemaError as exc:
+        return [str(exc)]
 
     # Every derived expression must evaluate for every item.
     for name, expr in scenario.derived.items():
@@ -25,18 +23,20 @@ def validate_scenario(scenario: Scenario) -> List[str]:
                 compute.evaluate_expr(expr, item)
             except compute.ExpressionError as exc:
                 errors.append(
-                    "%s: derived %r fails on item %r: %s"
-                    % (scenario.id, name, item["id"], exc)
+                    "%s: derived %r fails on item %r: %s" % (scenario.id, name, item["id"], exc)
                 )
 
     # Every question's authored answer must equal the recomputed answer.
     for q in scenario.questions:
         try:
-            recomputed = compute.recompute(scenario.data, {
-                "id": q.id,
-                "compute": q.compute,
-                "choices": [{"id": c.id, "value": c.value} for c in q.choices],
-            })
+            recomputed = compute.recompute(
+                scenario.data,
+                {
+                    "id": q.id,
+                    "compute": q.compute,
+                    "choices": [{"id": c.id, "value": c.value} for c in q.choices],
+                },
+            )
         except (compute.ExpressionError, ValueError, KeyError) as exc:
             errors.append("%s/%s: cannot recompute answer: %s" % (scenario.id, q.id, exc))
             continue
@@ -52,7 +52,10 @@ def validate_all(directory: Optional[str] = None) -> Tuple[bool, List[str]]:
     """Validate every scenario. Returns (ok, human-readable report lines)."""
     scenarios: Dict[str, Scenario] = load_all_scenarios(directory)
     if not scenarios:
-        return False, ["no scenarios found in %s" % (directory or "data/scenarios")]
+        return False, [
+            "no scenarios found in %s"
+            % (directory if directory is not None else "packaged scenarios")
+        ]
 
     report: List[str] = []
     all_errors: List[str] = []
@@ -60,8 +63,9 @@ def validate_all(directory: Optional[str] = None) -> Tuple[bool, List[str]]:
         errors = validate_scenario(scenario)
         all_errors.extend(errors)
         status = "ok" if not errors else "FAIL"
-        report.append("%-16s %s  (%d question%s)"
-                      % (sid, status, len(scenario.questions),
-                         "" if len(scenario.questions) == 1 else "s"))
+        report.append(
+            "%-16s %s  (%d question%s)"
+            % (sid, status, len(scenario.questions), "" if len(scenario.questions) == 1 else "s")
+        )
         report.extend("    - " + e for e in errors)
     return (not all_errors), report

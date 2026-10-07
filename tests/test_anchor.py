@@ -1,21 +1,24 @@
-"""H3 anchoring — anchor sets, model-vs-human correlation, fixture honesty."""
+"""H3 anchoring; anchor sets, model-vs-human correlation, fixture honesty."""
 
 import copy
 import os
 import tempfile
 import unittest
 
-import glassbox
 from glassbox import anchor
 from glassbox.cli import main
 from glassbox.readers import build_readers
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(glassbox.__file__))))
-FIXTURE = os.path.join(ROOT, "data", "anchors", "fixture.json")
+FIXTURE = "fixture"
 
 VALID = {
-    "id": "t", "source": "fixture test", "is_fixture": True, "condition": "raw",
-    "items": [{"scenario": "loans", "question": "cheapest_total", "human_accuracy": 0.5}],
+    "id": "t",
+    "source": "fixture test",
+    "is_fixture": True,
+    "condition": "raw",
+    "items": [
+        {"scenario": "loans", "question": "cheapest_total", "human_accuracy": 0.5}
+    ],
 }
 
 
@@ -55,7 +58,9 @@ class TestRunAnchor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         aset = anchor.load_anchor_set(FIXTURE)
-        cls.result = anchor.run_anchor(aset, build_readers(["simulated"]), skip_render=True)
+        cls.result = anchor.run_anchor(
+            aset, build_readers(["simulated"]), skip_render=True
+        )
 
     def test_correlations_computed(self):
         self.assertEqual(self.result.n_items, 9)
@@ -66,11 +71,15 @@ class TestRunAnchor(unittest.TestCase):
 
     def test_breaks_identifies_largest_gap(self):
         top = self.result.breaks(1)[0]
-        self.assertEqual((top.scenario, top.question), ("growth", "biggest_percent_gain"))
+        self.assertEqual(
+            (top.scenario, top.question), ("growth", "biggest_percent_gain")
+        )
 
     def test_cli_anchor_command(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(main(["anchor", "--set", FIXTURE, "--skip-render", "--out", tmp]), 0)
+            self.assertEqual(
+                main(["anchor", "--set", FIXTURE, "--skip-render", "--out", tmp]), 0
+            )
             self.assertTrue(os.path.isfile(os.path.join(tmp, "anchor.md")))
 
 

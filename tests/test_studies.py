@@ -1,16 +1,14 @@
-"""Study configs — load, validate, and run a reproducible H1 study offline."""
+"""Study configs; load, validate, and run a reproducible H1 study offline."""
 
 import json
 import os
 import tempfile
 import unittest
 
-import glassbox
 from glassbox import studies
 from glassbox.cli import main
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(glassbox.__file__))))
-SHIPPED_STUDY = os.path.join(ROOT, "data", "studies", "offline_demo.json")
+SHIPPED_STUDY = "offline_demo"
 
 
 class TestStudyConfig(unittest.TestCase):
@@ -26,13 +24,25 @@ class TestStudyConfig(unittest.TestCase):
 
     def test_bad_interface_rejected(self):
         with self.assertRaises(studies.StudyError):
-            studies.parse_study({"id": "x", "description": "d", "readers": ["simulated"],
-                                 "interfaces": ["not_a_variant"]})
+            studies.parse_study(
+                {
+                    "id": "x",
+                    "description": "d",
+                    "readers": ["simulated"],
+                    "interfaces": ["not_a_variant"],
+                }
+            )
 
     def test_bad_replicates_rejected(self):
         with self.assertRaises(studies.StudyError):
-            studies.parse_study({"id": "x", "description": "d", "readers": ["simulated"],
-                                 "replicates": 0})
+            studies.parse_study(
+                {
+                    "id": "x",
+                    "description": "d",
+                    "readers": ["simulated"],
+                    "replicates": 0,
+                }
+            )
 
 
 class TestRunStudy(unittest.TestCase):
@@ -49,15 +59,18 @@ class TestRunStudy(unittest.TestCase):
             self.assertIn("cross_family", data)
 
     def test_unknown_scenario_rejected(self):
-        config = studies.StudyConfig(id="x", description="d", readers=["simulated"],
-                                     scenarios=["nope"])
+        config = studies.StudyConfig(
+            id="x", description="d", readers=["simulated"], scenarios=["nope"]
+        )
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(studies.StudyError):
                 studies.run_study(config, tmp)
 
     def test_cli_study_command(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(main(["study", "--config", SHIPPED_STUDY, "--out", tmp]), 0)
+            self.assertEqual(
+                main(["study", "--config", SHIPPED_STUDY, "--out", tmp]), 0
+            )
             self.assertTrue(os.path.isfile(os.path.join(tmp, "report.md")))
 
 
