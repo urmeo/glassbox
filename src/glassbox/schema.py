@@ -1,66 +1,32 @@
-"""Scenario schema — typed load + structural validation of ``data/scenarios/*.json``.
-
-A scenario is source data plus multiple-choice questions whose correct answer is
-*recomputable* from that data. This module guards the file's
-*shape*; :mod:`glassbox.validate` guards its *answers* (recomputation). Keeping
-them separate means a malformed file fails loudly here, a wrong answer key fails
-loudly there, and neither can masquerade as the other.
-
-Scenario JSON shape::
-
-    {
-      "id": "loans",
-      "title": "Three loan offers",
-      "domain": "choosing between options",
-      "description": "...",
-      "data": {
-        "unit": "$",                       # optional, for display
-        "value_label": "total cost",       # optional, for display
-        "items": [
-          {"id": "A", "label": "Offer A", "monthly_payment": 305.0,
-           "term_months": 36, "fees": 300, "stated_total": 11280, "apr_pct": 7.1},
-          ...
-        ],
-        "derived": {"total_cost": "monthly_payment * term_months + fees"}
-      },
-      "questions": [
-        {
-          "id": "cheapest_total",
-          "stem": "Which offer costs the least in total over its full term?",
-          "compute": {"op": "argmin", "field": "total_cost"},
-          "choices": [{"id": "a", "text": "Offer A", "value": "A"}, ...],
-          "answer": "a"
-        }
-      ]
-    }
-"""
+"""Load scenarios, validate task structure and snapshot their complete content."""
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
+import math
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
+from .resources import ResourceError, decode_json, resource_json, resource_names
+
 _KNOWN_OPS = {"argmin", "argmax", "rank", "count_ge", "count_le", "count_gt", "count_lt"}
+SCENARIO_HASH_FORMAT = "glassbox.scenario.v1"
 
 
 class SchemaError(ValueError):
-    """A scenario file is structurally malformed."""
+    """A scenario is structurally malformed."""
 
 
 @dataclass(frozen=True)
 class PresentationHints:
-    """How interfaces should present this scenario (config, not content).
+    """Default display fields and the highlighted primary extreme."""
 
-    ``primary_metric`` is the derived value the honest interfaces (table, annotated)
-    display and the analysis treats as "the answer number". ``headline_field`` is the
-    raw field the polished ``cards`` interface emphasizes instead — the field that can
-    mislead a reader who takes it at face value. ``primary_extreme`` (argmin/argmax)
-    is which end of ``primary_metric`` the annotated interface highlights.
-    """
     primary_metric: str
-    primary_extreme: str  # "argmin" or "argmax"
+    primary_extreme: str
     headline_field: Optional[str]
     cards_fields: List[str]
     detail_fields: List[str]
@@ -70,7 +36,7 @@ class PresentationHints:
 class Choice:
     id: str
     text: str
-    value: Any  # an item id (str) for item ops, or an int for count ops
+    value: Any
 
 
 @dataclass(frozen=True)
@@ -79,20 +45,18 @@ class Question:
     stem: str
     compute: Dict[str, Any]
     choices: List[Choice]
-    answer: str  # a choice id
+    answer: str
 
     @property
     def target_field(self) -> Optional[str]:
-        """The data field this question hinges on (used by readers/interfaces)."""
         return self.compute.get("field")
 
     @property
     def correct_choice(self) -> Choice:
-        for c in self.choices:
-            if c.id == self.answer:
-                return c
-        raise SchemaError("question %r answer %r is not among its choices"
-                          % (self.id, self.answer))
+        for choice in self.choices:
+            if choice.id == self.answer:
+                return choice
+        raise SchemaError("question %r answer %r is not among its choices" % (self.id, self.answer))
 
 
 @dataclass(frozen=True)
@@ -114,10 +78,10 @@ class Scenario:
 
     @property
     def presentation(self) -> PresentationHints:
-        """Interface presentation hints, with sensible defaults if unspecified."""
         pres = self.data.get("presentation", {})
         raw_fields = sorted(raw_field_names(self.items))
-        default_metric = next(iter(self.derived), (raw_fields[0] if raw_fields else ""))
+        fields = sorted(self.derived)
+        default_metric = fields[0] if fields else (raw_fields[0] if raw_fields else "")
         return PresentationHints(
             primary_metric=pres.get("primary_metric", default_metric),
             primary_extreme=pres.get("primary_extreme", "argmin"),
@@ -127,177 +91,285 @@ class Scenario:
         )
 
     def item(self, item_id: str) -> Dict[str, Any]:
-        for it in self.items:
-            if it["id"] == item_id:
-                return it
+        for item in self.items:
+            if item["id"] == item_id:
+                return item
         raise KeyError("no item %r in scenario %r" % (item_id, self.id))
 
 
-def _require(cond: bool, message: str) -> None:
-    if not cond:
+def _require(condition: bool, message: str) -> None:
+    if not condition:
         raise SchemaError(message)
 
 
+def _text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _finite(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _json_values(value: Any, depth: int = 0) -> None:
+    _require(depth <= 100, "scenario JSON nesting exceeds 100 levels")
+    if value is None or isinstance(value, (str, bool)):
+        return
+    if isinstance(value, (int, float)):
+        _require(_finite(value), "scenario numeric values must be finite")
+    elif isinstance(value, dict):
+        _require(all(isinstance(key, str) for key in value), "scenario object keys must be strings")
+        for item in value.values():
+            _json_values(item, depth + 1)
+    elif isinstance(value, list):
+        for item in value:
+            _json_values(item, depth + 1)
+    else:
+        raise SchemaError("scenario values must contain JSON data")
+
+
 def raw_field_names(items: List[Dict[str, Any]]) -> set:
-    """The union of every raw field name across items (excluding id and label)."""
-    names = set()
-    for it in items:
-        names.update(k for k in it if k not in ("id", "label"))
-    return names
+    return {key for item in items for key in item if key not in ("id", "label")}
 
 
-def _validate_presentation(pres: Dict[str, Any], sid: str,
-                           raw_fields: set, derived_names: set) -> None:
+def _validate_presentation(
+    pres: Dict[str, Any], sid: str, raw_fields: set, derived_names: set
+) -> None:
     _require(isinstance(pres, dict), "%s: presentation must be an object" % sid)
     metric = pres.get("primary_metric")
     if metric is not None:
-        _require(metric in raw_fields or metric in derived_names,
-                 "%s: presentation.primary_metric %r is not a field" % (sid, metric))
-    extreme = pres.get("primary_extreme", "argmin")
-    _require(extreme in ("argmin", "argmax"),
-             "%s: presentation.primary_extreme must be argmin/argmax" % sid)
+        _require(
+            _text(metric) and metric in raw_fields | derived_names,
+            "%s: presentation.primary_metric is not a field" % sid,
+        )
+    _require(
+        pres.get("primary_extreme", "argmin") in ("argmin", "argmax"),
+        "%s: presentation.primary_extreme must be argmin/argmax" % sid,
+    )
     headline = pres.get("headline_field")
     if headline is not None:
-        _require(headline in raw_fields,
-                 "%s: presentation.headline_field %r is not a raw field" % (sid, headline))
+        _require(
+            _text(headline) and headline in raw_fields,
+            "%s: presentation.headline_field is not a raw field" % sid,
+        )
     for key in ("cards_fields", "detail_fields"):
         value = pres.get(key, [])
         _require(isinstance(value, list), "%s: presentation.%s must be a list" % (sid, key))
-        for f in value:
-            _require(f in raw_fields,
-                     "%s: presentation.%s references non-raw field %r" % (sid, key, f))
+        _require(
+            all(_text(name) and name in raw_fields for name in value),
+            "%s: presentation.%s references a non-raw field" % (sid, key),
+        )
+        _require(len(set(value)) == len(value), "%s: presentation.%s has duplicates" % (sid, key))
+    display = pres.get("field_display", {})
+    _require(isinstance(display, dict), "%s: field_display must be an object" % sid)
+    for name, hints in display.items():
+        _require(
+            name in raw_fields | derived_names and isinstance(hints, dict),
+            "%s: invalid field_display entry" % sid,
+        )
+        _require(
+            all(isinstance(hints.get(key, ""), str) for key in ("unit", "value_label")),
+            "%s: field display labels/units must be strings" % sid,
+        )
 
 
-def _parse_question(raw: Dict[str, Any], scenario_id: str,
-                    item_labels: Dict[str, str]) -> Question:
+def _parse_question(
+    raw: Dict[str, Any],
+    scenario_id: str,
+    item_labels: Dict[str, str],
+    raw_fields: set,
+    derived_names: set,
+) -> Question:
     qid = raw.get("id")
-    _require(isinstance(qid, str) and qid, "%s: a question has no id" % scenario_id)
+    _require(_text(qid), "%s: a question has no id" % scenario_id)
     where = "%s/%s" % (scenario_id, qid)
-
-    _require(isinstance(raw.get("stem"), str) and raw["stem"],
-             "%s: missing stem" % where)
-
-    compute = raw.get("compute")
-    _require(isinstance(compute, dict), "%s: missing compute spec" % where)
-    op = compute.get("op")
-    _require(op in _KNOWN_OPS, "%s: unknown compute op %r" % (where, op))
-    if op in ("argmin", "argmax", "rank") or op.startswith("count_"):
-        _require(isinstance(compute.get("field"), str),
-                 "%s: compute op %r needs a 'field'" % (where, op))
+    _require(_text(raw.get("stem")), "%s: missing stem" % where)
+    spec = raw.get("compute")
+    _require(isinstance(spec, dict), "%s: missing compute spec" % where)
+    op = spec.get("op")
+    _require(isinstance(op, str) and op in _KNOWN_OPS, "%s: unknown compute op %r" % (where, op))
+    _require(
+        _text(spec.get("field")) and spec["field"] in raw_fields | derived_names,
+        "%s: compute field is not a raw or derived field" % where,
+    )
     if op == "rank":
-        _require(isinstance(compute.get("k"), int) and compute["k"] >= 1,
-                 "%s: rank needs integer k >= 1" % where)
+        k = spec.get("k")
+        _require(
+            type(k) is int and 1 <= k <= len(item_labels),
+            "%s: rank needs an integer k within the item range" % where,
+        )
+        _require(
+            spec.get("order", "asc") in ("asc", "desc"), "%s: rank order must be asc/desc" % where
+        )
     if op.startswith("count_"):
-        _require(isinstance(compute.get("threshold"), (int, float)),
-                 "%s: %s needs a numeric 'threshold'" % (where, op))
-
+        _require(
+            _finite(spec.get("threshold")), "%s: count threshold must be finite numeric" % where
+        )
     raw_choices = raw.get("choices")
-    _require(isinstance(raw_choices, list) and len(raw_choices) >= 2,
-             "%s: needs >= 2 choices" % where)
+    _require(
+        isinstance(raw_choices, list) and 2 <= len(raw_choices) <= 26,
+        "%s: needs 2 to 26 choices for A-Z answer letters" % where,
+    )
     choices: List[Choice] = []
-    seen_ids = set()
+    seen_ids, seen_text, seen_values = set(), set(), set()
     for rc in raw_choices:
         _require(isinstance(rc, dict), "%s: a choice is not an object" % where)
-        cid, text = rc.get("id"), rc.get("text")
-        _require(isinstance(cid, str) and cid, "%s: a choice has no id" % where)
-        _require(cid not in seen_ids, "%s: duplicate choice id %r" % (where, cid))
+        cid, text, value = rc.get("id"), rc.get("text"), rc.get("value")
+        _require(_text(cid) and cid not in seen_ids, "%s: missing or duplicate choice id" % where)
+        _require(_text(text), "%s: choice %r has no text" % (where, cid))
+        visible = " ".join(text.split()).casefold()
+        _require(visible not in seen_text, "%s: duplicate visible choice answer" % where)
+        if op.startswith("count_"):
+            _require(
+                type(value) is int and value >= 0,
+                "%s: count choice values must be nonnegative integers" % where,
+            )
+            _require(
+                re.fullmatch(r"0|[1-9][0-9]*", text.strip()) is not None
+                and text.strip() == str(value),
+                "%s: count choice text must display its numeric value" % where,
+            )
+        else:
+            _require(
+                _text(value) and value in item_labels, "%s: choice value is not an item id" % where
+            )
+            _require(
+                item_labels[value].casefold() in text.casefold(),
+                "%s: choice text does not name its item's label" % where,
+            )
+        _require(value not in seen_values, "%s: duplicate choice value" % where)
         seen_ids.add(cid)
-        _require(isinstance(text, str) and text, "%s: choice %r has no text" % (where, cid))
-        _require("value" in rc, "%s: choice %r has no 'value'" % (where, cid))
-        choices.append(Choice(id=cid, text=text, value=rc["value"]))
-
+        seen_text.add(visible)
+        seen_values.add(value)
+        choices.append(Choice(cid, text, value))
     answer = raw.get("answer")
-    _require(answer in seen_ids, "%s: answer %r not among choice ids" % (where, answer))
-
-    # For item-referencing ops, every choice value must name a real item, and the
-    # choice's visible text must name that same item — a real reader answers from the
-    # text it sees, so a text/value mismatch would mark a correct reader wrong.
-    if op in ("argmin", "argmax", "rank"):
-        for c in choices:
-            _require(c.value in item_labels,
-                     "%s: choice %r value %r is not an item id" % (where, c.id, c.value))
-            label = item_labels[c.value]
-            _require(label.lower() in c.text.lower(),
-                     "%s: choice %r text %r does not name item %r (label %r)"
-                     % (where, c.id, c.text, c.value, label))
-
-    return Question(id=qid, stem=raw["stem"], compute=compute,
-                    choices=choices, answer=answer)
+    _require(
+        isinstance(answer, str) and answer in seen_ids, "%s: answer is not among choices" % where
+    )
+    return Question(qid, raw["stem"], copy.deepcopy(spec), choices, answer)
 
 
 def parse_scenario(raw: Dict[str, Any]) -> Scenario:
-    """Build and structurally validate a :class:`Scenario` from a parsed dict."""
+    _require(isinstance(raw, dict), "scenario must be an object")
+    _json_values(raw)
     sid = raw.get("id")
-    _require(isinstance(sid, str) and sid, "scenario has no id")
+    _require(_text(sid), "scenario has no id")
     for key in ("title", "domain", "description"):
-        _require(isinstance(raw.get(key), str) and raw[key],
-                 "%s: missing %s" % (sid, key))
-
+        _require(_text(raw.get(key)), "%s: missing %s" % (sid, key))
     data = raw.get("data")
     _require(isinstance(data, dict), "%s: missing data" % sid)
     items = data.get("items")
-    _require(isinstance(items, list) and len(items) >= 1, "%s: needs items" % sid)
+    _require(isinstance(items, list) and items, "%s: needs items" % sid)
     item_labels: Dict[str, str] = {}
-    for it in items:
-        _require(isinstance(it, dict) and isinstance(it.get("id"), str),
-                 "%s: every item needs a string id" % sid)
-        _require(it["id"] not in item_labels, "%s: duplicate item id %r" % (sid, it["id"]))
-        _require(isinstance(it.get("label"), str) and it["label"],
-                 "%s: item %r needs a label" % (sid, it["id"]))
-        item_labels[it["id"]] = it["label"]
-
+    labels = set()
+    for item in items:
+        _require(
+            isinstance(item, dict) and _text(item.get("id")),
+            "%s: every item needs a string id" % sid,
+        )
+        _require(item["id"] not in item_labels, "%s: duplicate item id" % sid)
+        _require(_text(item.get("label")), "%s: every item needs a label" % sid)
+        label = " ".join(item["label"].split()).casefold()
+        _require(label not in labels, "%s: duplicate item label" % sid)
+        item_labels[item["id"]] = item["label"]
+        labels.add(label)
+    for key in ("unit", "value_label"):
+        _require(isinstance(data.get(key, ""), str), "%s: %s must be a string" % (sid, key))
     derived = data.get("derived", {})
-    _require(isinstance(derived, dict), "%s: 'derived' must be an object" % sid)
-    for name, expr in derived.items():
-        _require(isinstance(expr, str) and expr,
-                 "%s: derived %r must be a non-empty expression string" % (sid, name))
-
+    _require(isinstance(derived, dict), "%s: derived must be an object" % sid)
+    _require(
+        all(_text(name) and _text(expr) for name, expr in derived.items()),
+        "%s: derived names/expressions must be nonempty strings" % sid,
+    )
+    raw_fields = raw_field_names(items)
+    _require(not raw_fields.intersection(derived), "%s: derived names duplicate raw fields" % sid)
     if "presentation" in data:
-        _validate_presentation(data["presentation"], sid,
-                               raw_field_names(items), set(derived))
-
+        _validate_presentation(data["presentation"], sid, raw_fields, set(derived))
     raw_questions = raw.get("questions")
-    _require(isinstance(raw_questions, list) and len(raw_questions) >= 1,
-             "%s: needs >= 1 question" % sid)
-    q_ids = set()
+    _require(isinstance(raw_questions, list) and raw_questions, "%s: needs questions" % sid)
     questions: List[Question] = []
-    for rq in raw_questions:
-        _require(isinstance(rq, dict), "%s: a question is not an object" % sid)
-        q = _parse_question(rq, sid, item_labels)
-        _require(q.id not in q_ids, "%s: duplicate question id %r" % (sid, q.id))
-        q_ids.add(q.id)
-        questions.append(q)
+    seen = set()
+    for raw_question in raw_questions:
+        _require(isinstance(raw_question, dict), "%s: a question is not an object" % sid)
+        question = _parse_question(raw_question, sid, item_labels, raw_fields, set(derived))
+        _require(question.id not in seen, "%s: duplicate question id" % sid)
+        seen.add(question.id)
+        questions.append(question)
+        if question.target_field in raw_fields:
+            _require(
+                all(_finite(item.get(question.target_field)) for item in items),
+                "%s/%s: target values must be finite numeric" % (sid, question.id),
+            )
+    return Scenario(
+        sid, raw["title"], raw["domain"], raw["description"], copy.deepcopy(data), questions
+    )
 
-    return Scenario(id=sid, title=raw["title"], domain=raw["domain"],
-                    description=raw["description"], data=data, questions=questions)
+
+def validate_structure(scenario: Scenario) -> None:
+    """Apply parsed-shape guards to direct public Scenario instances."""
+    _require(isinstance(scenario, Scenario), "expected a Scenario")
+    try:
+        parse_scenario(asdict(scenario))
+    except (TypeError, RecursionError) as exc:
+        raise SchemaError("malformed scenario structure: %s" % exc) from exc
+
+
+def scenario_payload(scenario: Scenario) -> Dict[str, Any]:
+    _require(isinstance(scenario, Scenario), "expected a Scenario")
+    try:
+        payload = asdict(scenario)
+        payload["resolved_presentation"] = asdict(scenario.presentation)
+        _json_values(payload)
+        return payload
+    except (TypeError, KeyError, AttributeError, RecursionError) as exc:
+        raise SchemaError("cannot snapshot malformed scenario: %s" % exc) from exc
+
+
+def scenario_sha256(scenario: Scenario) -> str:
+    encoded = json.dumps(
+        scenario_payload(scenario),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def load_scenario(path: str) -> Scenario:
-    """Load and structurally validate a single scenario JSON file."""
-    with open(path, "r", encoding="utf-8") as fh:
-        try:
-            raw = json.load(fh)
-        except json.JSONDecodeError as exc:
-            raise SchemaError("%s: invalid JSON: %s" % (path, exc))
-    return parse_scenario(raw)
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            raw = decode_json(stream.read(), str(path))
+        return parse_scenario(raw)
+    except (OSError, UnicodeError, ResourceError) as exc:
+        raise SchemaError("%s: %s" % (path, exc)) from exc
 
 
 def scenarios_dir(base: Optional[str] = None) -> str:
-    """Locate ``data/scenarios`` relative to the repo root (two levels up from src)."""
-    if base is None:
-        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(base, "data", "scenarios")
+    """Retain the directory helper for explicit filesystem callers."""
+    if base is not None:
+        return os.path.join(base, "data", "scenarios")
+    return os.path.join(os.path.dirname(__file__), "_data", "scenarios")
 
 
 def load_all_scenarios(directory: Optional[str] = None) -> Dict[str, Scenario]:
-    """Load every ``*.json`` in the scenarios directory, keyed and sorted by id."""
-    directory = directory or scenarios_dir()
     out: Dict[str, Scenario] = {}
-    for name in sorted(os.listdir(directory)):
-        if not name.endswith(".json"):
-            continue
-        scenario = load_scenario(os.path.join(directory, name))
-        if scenario.id in out:
-            raise SchemaError("duplicate scenario id %r (file %s)" % (scenario.id, name))
-        out[scenario.id] = scenario
+    try:
+        names = resource_names("scenarios") if directory is None else sorted(os.listdir(directory))
+        for name in names:
+            if not name.endswith(".json"):
+                continue
+            scenario = (
+                parse_scenario(resource_json("scenarios", name))
+                if directory is None
+                else load_scenario(os.path.join(directory, name))
+            )
+            _require(scenario.id not in out, "duplicate scenario id %r" % scenario.id)
+            out[scenario.id] = scenario
+    except (OSError, ResourceError) as exc:
+        raise SchemaError("cannot load scenarios: %s" % exc) from exc
     return dict(sorted(out.items()))

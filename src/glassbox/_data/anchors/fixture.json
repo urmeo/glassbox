@@ -1,0 +1,54 @@
+{
+  "id": "fixture",
+  "source": "Synthetic human-accuracy fixture; no human study",
+  "note": "Invented per-item accuracy for offline checks; no H3 evidence.",
+  "is_fixture": true,
+  "condition": "raw",
+  "items": [
+    {
+      "scenario": "loans",
+      "question": "cheapest_total",
+      "human_accuracy": 0.45
+    },
+    {
+      "scenario": "loans",
+      "question": "count_over_11k",
+      "human_accuracy": 0.7
+    },
+    {
+      "scenario": "loans",
+      "question": "second_cheapest",
+      "human_accuracy": 0.62
+    },
+    {
+      "scenario": "plans",
+      "question": "cheapest_2yr",
+      "human_accuracy": 0.68
+    },
+    {
+      "scenario": "plans",
+      "question": "count_over_1500",
+      "human_accuracy": 0.72
+    },
+    {
+      "scenario": "plans",
+      "question": "most_expensive_2yr",
+      "human_accuracy": 0.6
+    },
+    {
+      "scenario": "growth",
+      "question": "biggest_dollar_gain",
+      "human_accuracy": 0.75
+    },
+    {
+      "scenario": "growth",
+      "question": "biggest_percent_gain",
+      "human_accuracy": 0.4
+    },
+    {
+      "scenario": "growth",
+      "question": "count_gain_over_50",
+      "human_accuracy": 0.78
+    }
+  ]
+}

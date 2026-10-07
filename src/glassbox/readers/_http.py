@@ -1,17 +1,16 @@
-"""Shared plumbing for the real-API readers — stdlib HTTP + image encoding.
-
-Keys are read from the environment at call time and never persisted (a project
-requirement). A missing key raises a clear error rather than failing silently.
-"""
+"""Stdlib HTTP and image encoding; API keys are read only at call time."""
 
 from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 import urllib.error
 import urllib.request
 from typing import Any, Dict
+
+from .._config import strict_json
 
 _RETRYABLE = {429, 500, 502, 503, 529}
 
@@ -40,10 +39,33 @@ def encode_png_base64(path: str) -> str:
         return base64.b64encode(fh.read()).decode("ascii")
 
 
-def post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any],
-              timeout: int = 90, retries: int = 2) -> Dict[str, Any]:
+def post_json(
+    url: str,
+    headers: Dict[str, str],
+    payload: Dict[str, Any],
+    timeout: int = 90,
+    retries: int = 2,
+) -> Dict[str, Any]:
     """POST ``payload`` as JSON and return the parsed response, with bounded retries."""
-    data = json.dumps(payload).encode("utf-8")
+    try:
+        finite_timeout = math.isfinite(timeout)
+    except (TypeError, OverflowError):
+        finite_timeout = False
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not finite_timeout
+        or timeout <= 0
+    ):
+        raise ValueError("timeout must be a finite positive number")
+    if isinstance(retries, bool) or not isinstance(retries, int) or retries < 0:
+        raise ValueError("retries must be a nonnegative integer")
+    if not isinstance(payload, dict):
+        raise ValueError("payload must be an object")
+    try:
+        data = json.dumps(payload, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        raise ValueError("payload must contain finite JSON values") from None
     merged = dict(headers)
     merged.setdefault("content-type", "application/json")
 
@@ -52,9 +74,25 @@ def post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any],
         req = urllib.request.Request(url, data=data, headers=merged, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                try:
+                    result = strict_json(resp.read().decode("utf-8"))
+                except (UnicodeError, ValueError) as exc:
+                    raise ReaderAPIError(
+                        "invalid JSON response from %s: %s" % (url, exc)
+                    ) from None
+                if not isinstance(result, dict):
+                    raise ReaderAPIError("response from %s must be a JSON object" % url)
+                return result
         except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", "replace")[:500]
+            try:
+                body = exc.read().decode("utf-8", "replace")[:500]
+            finally:
+                exc.close()
+            for name, value in headers.items():
+                if name.lower() in {"authorization", "x-api-key"}:
+                    secret = value.removeprefix("Bearer ")
+                    if secret:
+                        body = body.replace(secret, "[redacted]")
             last = ReaderAPIError("HTTP %s from %s: %s" % (exc.code, url, body))
             if exc.code in _RETRYABLE and attempt < retries:
                 continue

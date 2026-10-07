@@ -1,4 +1,4 @@
-"""M4 reward — the comprehension score as a reward, and the offline search generator."""
+"""In-sample feature-search fixtures."""
 
 import unittest
 
@@ -13,12 +13,17 @@ class TestReward(unittest.TestCase):
         cls.readers = build_readers(["simulated"])
 
     def test_honest_interface_has_positive_reward(self):
-        r = reward.scenario_set_reward(self.scenarios, frozenset({"detail", "derived"}), self.readers)
+        r = reward.scenario_set_reward(
+            self.scenarios, frozenset({"detail", "derived"}), self.readers
+        )
         self.assertGreater(r, 0.0)
 
     def test_cards_have_negative_reward(self):
         from glassbox.interfaces import VARIANT_FEATURES
-        r = reward.scenario_set_reward(self.scenarios, VARIANT_FEATURES["cards"], self.readers)
+
+        r = reward.scenario_set_reward(
+            self.scenarios, VARIANT_FEATURES["cards"], self.readers
+        )
         self.assertLess(r, 0.0)
 
     def test_search_selects_the_computed_metric(self):
@@ -35,14 +40,23 @@ class TestReward(unittest.TestCase):
         self.assertGreater(ev.generator_reward, ev.cards_reward)
 
     def test_pool_excludes_family(self):
-        self.assertFalse(reward.pool_excludes_family(
-            ["anthropic:claude-sonnet-5", "openrouter:qwen/qwen3-vl-8b-instruct"], "qwen"))
-        self.assertTrue(reward.pool_excludes_family(
-            ["anthropic:claude-sonnet-5", "anthropic:claude-opus-4-8"], "qwen"))
+        self.assertFalse(
+            reward.pool_excludes_family(
+                ["anthropic:claude-sonnet-5", "openrouter:qwen/qwen3-vl-8b-instruct"],
+                "qwen",
+            )
+        )
+        self.assertTrue(
+            reward.pool_excludes_family(
+                ["anthropic:claude-sonnet-5", "anthropic:claude-opus-4-8"], "qwen"
+            )
+        )
 
     def test_model_family_is_structured_not_substring(self):
         self.assertEqual(reward.model_family("anthropic:claude-sonnet-5"), "anthropic")
-        self.assertEqual(reward.model_family("openrouter:qwen/qwen3-vl-8b-instruct"), "qwen")
+        self.assertEqual(
+            reward.model_family("openrouter:qwen/qwen3-vl-8b-instruct"), "qwen"
+        )
         self.assertEqual(reward.model_family("simulated:literal"), "simulated")
         # a Qwen model under a non-'qwen' alias is 'unknown', not silently allowed
         self.assertEqual(reward.model_family("openrouter:alibaba/vl-max"), "unknown")
@@ -51,8 +65,11 @@ class TestReward(unittest.TestCase):
 
     def test_optimize_report_labels_simulated(self):
         from glassbox import report as rp
+
         ev = reward.evaluate_generator(self.scenarios, self.readers)
-        md = rp.render_optimize_md(ev, ["simulated:literal", "simulated:diligent"], None)
+        md = rp.render_optimize_md(
+            ev, ["simulated:literal", "simulated:diligent"], None
+        )
         self.assertIn("Simulated readers only", md)
 
 

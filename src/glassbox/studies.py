@@ -1,27 +1,29 @@
-"""Studies — a reproducible, pre-registerable H1 run defined by a config file.
-
-A study fixes everything that determines a result — scenarios, readers, interfaces
-under test, replicates, and judge — in one JSON file, so the exact run can be declared
-up front and re-run by anyone. ``run_study`` executes it end to end (read -> score ->
-H1 -> cross-family -> report) and echoes the config into the results for provenance.
-The CLI's quick ``run`` is the same path with an ad-hoc config.
-"""
+"""Validated study definitions and execution."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
 from . import analysis, report, scoring
+from ._config import (
+    config_input_path,
+    boolean,
+    load_config,
+    object_fields,
+    positive_integer,
+    strings,
+    text,
+)
 from .interfaces import INTERFACE_VARIANTS, REFERENCE_VARIANTS
-from .judge import build_judge
-from .readers import build_readers
+from .judge import build_judge, validate_judge_spec
+from .output_paths import validate_output_files
+from .readers import build_readers, expand_reader_specs
 from .schema import Scenario, load_all_scenarios
 
 
 class StudyError(ValueError):
-    """A study config is malformed."""
+    """A study configuration is malformed."""
 
 
 @dataclass(frozen=True)
@@ -29,54 +31,49 @@ class StudyConfig:
     id: str
     description: str
     readers: List[str]
-    scenarios: Optional[List[str]] = None    # None means all shipped scenarios
-    interfaces: Optional[List[str]] = None   # interface variants under test; None means all
+    scenarios: Optional[List[str]] = None
+    interfaces: Optional[List[str]] = None
     replicates: int = 1
     judge: str = "polish"
     skip_render: bool = True
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "id", text(self.id, "id", StudyError))
+        text(self.description, "description", StudyError, empty=True)
+        reader_specs = strings(self.readers, "readers", StudyError)
+        try:
+            expand_reader_specs(reader_specs)
+            judge = validate_judge_spec(self.judge)
+        except ValueError as exc:
+            raise StudyError(str(exc)) from None
+        object.__setattr__(self, "readers", reader_specs)
+        object.__setattr__(self, "judge", judge)
+        for field in ("scenarios", "interfaces"):
+            values = strings(getattr(self, field), field, StudyError, optional=True)
+            object.__setattr__(self, field, values)
+        if self.interfaces is not None:
+            for variant in self.interfaces:
+                if variant not in INTERFACE_VARIANTS:
+                    raise StudyError("unknown testable interface %r" % variant)
+        positive_integer(self.replicates, "replicates", StudyError)
+        boolean(self.skip_render, "skip_render", StudyError)
 
     def to_meta(self) -> Dict[str, Any]:
         return asdict(self)
 
 
-def _require(cond: bool, message: str) -> None:
-    if not cond:
-        raise StudyError(message)
-
-
 def parse_study(raw: Dict[str, Any]) -> StudyConfig:
-    _require(isinstance(raw.get("id"), str) and raw["id"], "study needs a string id")
-    _require(isinstance(raw.get("description"), str), "study needs a description")
-    readers = raw.get("readers")
-    _require(isinstance(readers, list) and readers, "study needs a non-empty 'readers' list")
-
-    scenarios = raw.get("scenarios")
-    _require(scenarios is None or isinstance(scenarios, list), "'scenarios' must be a list or absent")
-    interfaces = raw.get("interfaces")
-    _require(interfaces is None or isinstance(interfaces, list), "'interfaces' must be a list or absent")
-    if interfaces is not None:
-        for v in interfaces:
-            _require(v in INTERFACE_VARIANTS,
-                     "interface %r is not a testable variant %s" % (v, INTERFACE_VARIANTS))
-
-    replicates = raw.get("replicates", 1)
-    _require(isinstance(replicates, int) and replicates >= 1, "'replicates' must be an int >= 1")
-
-    return StudyConfig(
-        id=raw["id"], description=raw["description"], readers=list(readers),
-        scenarios=list(scenarios) if scenarios is not None else None,
-        interfaces=list(interfaces) if interfaces is not None else None,
-        replicates=replicates, judge=raw.get("judge", "polish"),
-        skip_render=raw.get("skip_render", True))
+    object_fields(raw, StudyConfig.__dataclass_fields__, StudyError)
+    try:
+        return StudyConfig(**raw)
+    except TypeError as exc:
+        raise StudyError(str(exc)) from None
 
 
-def load_study(path: str) -> StudyConfig:
-    with open(path, "r", encoding="utf-8") as fh:
-        try:
-            raw = json.load(fh)
-        except json.JSONDecodeError as exc:
-            raise StudyError("%s: invalid JSON: %s" % (path, exc))
-    return parse_study(raw)
+def load_study(source: str) -> StudyConfig:
+    config = parse_study(load_config("studies", source, StudyError))
+    object.__setattr__(config, "_source_path", config_input_path("studies", source))
+    return config
 
 
 @dataclass(frozen=True)
@@ -95,25 +92,53 @@ def _resolve_scenarios(config: StudyConfig) -> List[Scenario]:
     chosen = []
     for sid in config.scenarios:
         if sid not in everything:
-            raise StudyError("unknown scenario %r (have: %s)" % (sid, ", ".join(everything)))
+            raise StudyError(
+                "unknown scenario %r (have: %s)" % (sid, ", ".join(everything))
+            )
         chosen.append(everything[sid])
     return chosen
 
 
 def run_study(config: StudyConfig, out_dir: str) -> StudyResult:
-    """Execute a study end to end and write its report."""
+    """Validate, execute, and report the declared study."""
+    if not isinstance(config, StudyConfig):
+        raise StudyError("config must be a StudyConfig")
+    config.__post_init__()
+    protected = (
+        (config._source_path,)
+        if getattr(config, "_source_path", None) is not None
+        else ()
+    )
+    validate_output_files(
+        out_dir, ("report.md", "results.json"), protected_paths=protected
+    )
     scenarios = _resolve_scenarios(config)
+    interfaces = (
+        list(INTERFACE_VARIANTS) if config.interfaces is None else config.interfaces
+    )
+    judge = build_judge(config.judge, variants=interfaces)
     readers = build_readers(config.readers)
-    judge = build_judge(config.judge)
-    interfaces = config.interfaces or list(INTERFACE_VARIANTS)
     variants = list(REFERENCE_VARIANTS) + interfaces
-
-    results = scoring.read_all(scenarios, readers, variants=variants,
-                               skip_render=config.skip_render, out_dir=out_dir,
-                               replicates=config.replicates)
+    results = scoring.read_all(
+        scenarios,
+        readers,
+        variants=variants,
+        skip_render=config.skip_render,
+        out_dir=out_dir,
+        replicates=config.replicates,
+    )
     book = scoring.ScoreBook(results)
     h1 = analysis.analyze_h1(book, scenarios, judge)
     cross = analysis.analyze_cross_family(book, scenarios, judge)
-    paths = report.write_run(out_dir, scenarios, results, book, h1, cross,
-                             config.skip_render, study=config.to_meta())
+    paths = report.write_run(
+        out_dir,
+        scenarios,
+        results,
+        book,
+        h1,
+        cross,
+        config.skip_render,
+        study=config.to_meta(),
+        protected_paths=protected,
+    )
     return StudyResult(config=config, book=book, h1=h1, cross=cross, paths=paths)

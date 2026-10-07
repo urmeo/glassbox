@@ -1,9 +1,0 @@
-You are comparing two interfaces that present the same underlying data. Judge only which one would help a reader UNDERSTAND the data better — not which looks nicer.
-
-Interface A:
-{a}
-
-Interface B:
-{b}
-
-Which interface helps a reader understand the data better? Reply with only "A" or "B".

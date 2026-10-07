@@ -1,32 +1,12 @@
-"""The recompute engine — every answer key is re-derived from source, never trusted.
-
-Two pieces:
-
-* ``evaluate_expr`` — a *safe* arithmetic evaluator over a restricted AST (numbers,
-  field names, and the operators ``+ - * / // %`` only). It never calls ``eval``
-  and never touches attributes, calls, subscripts, or comprehensions, so a scenario
-  file cannot smuggle in executable code. This is what lets "derived" fields such as
-  ``total_cost = monthly_payment * term_months + fees`` live in data while staying
-  inert. Exponentiation is deliberately excluded so no expression can trigger
-  unbounded integer growth (a ``9**9**9`` denial of service).
-
-* ``recompute`` — given a scenario's data and one question, computes the canonical
-  answer purely from the source and returns the id of the choice that represents it.
-  The validator (and tests) compare that against the authored ``answer`` so content
-  and answer key can never silently diverge.
-"""
+"""Recompute finite numeric answers using a restricted arithmetic AST."""
 
 from __future__ import annotations
 
 import ast
-from typing import Any, Dict, List, Mapping, Union
+import math
+from typing import Any, List, Mapping, Union
 
 Number = Union[int, float]
-
-# --- safe arithmetic over a whitelisted AST ---------------------------------
-
-# Exponentiation is intentionally omitted: `**` on constants can grow without bound
-# (`9**9**9`) and hang the process. The shipped derived fields never need it.
 _BIN_OPS = {
     ast.Add: lambda a, b: a + b,
     ast.Sub: lambda a, b: a - b,
@@ -35,68 +15,74 @@ _BIN_OPS = {
     ast.FloorDiv: lambda a, b: a // b,
     ast.Mod: lambda a, b: a % b,
 }
-_UNARY_OPS = {
-    ast.UAdd: lambda a: +a,
-    ast.USub: lambda a: -a,
-}
+_UNARY_OPS = {ast.UAdd: lambda a: +a, ast.USub: lambda a: -a}
+_OPS = {"argmin", "argmax", "rank", "count_ge", "count_le", "count_gt", "count_lt"}
 
 
 class ExpressionError(ValueError):
-    """A derived-field expression is malformed or uses a disallowed construct."""
+    """An expression is malformed, nonfinite or outside the arithmetic whitelist."""
+
+
+def _number(value: Any, label: str) -> Number:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("%s must be a finite real number" % label)
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
+        raise ValueError("%s must be a finite real number" % label)
+    return value
+
+
+def _tree(expr: str) -> ast.Expression:
+    if not isinstance(expr, str) or not expr.strip() or len(expr) > 10_000:
+        raise ExpressionError("expression must be nonempty text of at most 10000 characters")
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except (SyntaxError, RecursionError) as exc:
+        raise ExpressionError("could not parse expression %r: %s" % (expr, exc)) from exc
+    if sum(1 for _node in ast.walk(tree)) > 1000:
+        raise ExpressionError("expression exceeds 1000 AST nodes")
+    return tree
 
 
 def evaluate_expr(expr: str, fields: Mapping[str, Any]) -> Number:
-    """Evaluate ``expr`` against ``fields`` using only whitelisted arithmetic.
-
-    Names resolve to values in ``fields`` (which must be numeric). Any construct
-    outside the whitelist raises :class:`ExpressionError`.
-    """
+    if not isinstance(fields, Mapping):
+        raise ExpressionError("expression fields must be a mapping")
     try:
-        tree = ast.parse(expr, mode="eval")
-    except SyntaxError as exc:  # malformed expression
-        raise ExpressionError("could not parse expression %r: %s" % (expr, exc))
-    try:
-        return _eval_node(tree.body, fields, expr)
-    except ArithmeticError as exc:  # e.g. division by zero on an in-whitelist operator
-        raise ExpressionError("arithmetic error in %r: %s" % (expr, exc))
+        return _eval_node(_tree(expr).body, fields, expr)
+    except (ArithmeticError, RecursionError, ValueError) as exc:
+        if isinstance(exc, ExpressionError):
+            raise
+        raise ExpressionError("arithmetic error in %r: %s" % (expr, exc)) from exc
 
 
-def expr_fields(expr: str) -> "set":
-    """The set of field names an expression references (its inputs)."""
-    try:
-        tree = ast.parse(expr, mode="eval")
-    except SyntaxError as exc:
-        raise ExpressionError("could not parse expression %r: %s" % (expr, exc))
-    return {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+def expr_fields(expr: str) -> set:
+    return {node.id for node in ast.walk(_tree(expr)) if isinstance(node, ast.Name)}
 
 
 def _eval_node(node: ast.AST, fields: Mapping[str, Any], expr: str) -> Number:
     if isinstance(node, ast.BinOp) and type(node.op) in _BIN_OPS:
-        left = _eval_node(node.left, fields, expr)
-        right = _eval_node(node.right, fields, expr)
-        return _BIN_OPS[type(node.op)](left, right)
-    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
-        return _UNARY_OPS[type(node.op)](_eval_node(node.operand, fields, expr))
-    if isinstance(node, ast.Constant):
-        if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
-            raise ExpressionError("non-numeric constant %r in %r" % (node.value, expr))
-        return node.value
-    if isinstance(node, ast.Name):
+        value = _BIN_OPS[type(node.op)](
+            _eval_node(node.left, fields, expr), _eval_node(node.right, fields, expr)
+        )
+    elif isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        value = _UNARY_OPS[type(node.op)](_eval_node(node.operand, fields, expr))
+    elif isinstance(node, ast.Constant):
+        value = node.value
+    elif isinstance(node, ast.Name):
         if node.id not in fields:
             raise ExpressionError("unknown field %r in %r" % (node.id, expr))
         value = fields[node.id]
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ExpressionError("field %r is not numeric (%r)" % (node.id, value))
-        return value
-    raise ExpressionError("disallowed expression element %s in %r"
-                          % (type(node).__name__, expr))
+    else:
+        raise ExpressionError(
+            "disallowed expression element %s in %r" % (type(node).__name__, expr)
+        )
+    return _number(value, "expression value")
 
 
-# --- field resolution -------------------------------------------------------
-
-def resolve_field(item: Mapping[str, Any], field: str,
-                  derived: Mapping[str, str]) -> Any:
-    """Return ``field`` for ``item`` — a raw field, or a derived one evaluated now."""
+def resolve_field(item: Mapping[str, Any], field: str, derived: Mapping[str, str]) -> Any:
     if field in item:
         return item[field]
     if field in derived:
@@ -104,66 +90,88 @@ def resolve_field(item: Mapping[str, Any], field: str,
     raise KeyError("field %r is neither a raw nor a derived field" % field)
 
 
-# --- compute operations -----------------------------------------------------
+def validate_compute_spec(spec: Mapping[str, Any], n_items: int) -> None:
+    """Apply the same operation guards to public compute entry points."""
+    if (
+        not isinstance(spec, Mapping)
+        or not isinstance(spec.get("op"), str)
+        or spec["op"] not in _OPS
+    ):
+        raise ValueError("unknown or missing compute operation")
+    if not isinstance(spec.get("field"), str) or not spec["field"].strip():
+        raise ValueError("compute field must be nonempty text")
+    op = spec["op"]
+    if op == "rank":
+        k = spec.get("k")
+        if type(k) is not int or not 1 <= k <= n_items:
+            raise ValueError("rank k must be an integer within the item range")
+        if spec.get("order", "asc") not in ("asc", "desc"):
+            raise ValueError("rank order must be asc/desc")
+    if op.startswith("count_"):
+        _number(spec.get("threshold"), "count threshold")
 
-def _numeric(items: List[Mapping[str, Any]], field: str,
-             derived: Mapping[str, str]) -> List[Number]:
-    return [resolve_field(it, field, derived) for it in items]
+
+def _numeric(
+    items: List[Mapping[str, Any]], field: str, derived: Mapping[str, str]
+) -> List[Number]:
+    return [_number(resolve_field(item, field, derived), "target value") for item in items]
 
 
 def compute_answer_value(data: Mapping[str, Any], spec: Mapping[str, Any]) -> Any:
-    """Compute the canonical answer *value* for a question's ``compute`` spec.
-
-    Returns an item id (for argmin/argmax/rank) or an integer (for count_*).
-    Ties break to the earliest item in source order — scenarios should avoid ties.
-    """
+    """Compute from source; ties select the earliest source item."""
+    if (
+        not isinstance(data, Mapping)
+        or not isinstance(data.get("items"), list)
+        or not data["items"]
+    ):
+        raise ValueError("compute data requires a nonempty items list")
+    items = data["items"]
+    if any(
+        not isinstance(item, Mapping)
+        or not isinstance(item.get("id"), str)
+        or not item["id"].strip()
+        for item in items
+    ):
+        raise ValueError("every compute item requires a string id")
+    if len({item["id"] for item in items}) != len(items):
+        raise ValueError("compute item ids must be unique")
+    derived = data.get("derived", {})
+    if not isinstance(derived, Mapping):
+        raise ValueError("derived fields must be a mapping")
+    validate_compute_spec(spec, len(items))
     op = spec["op"]
-    items: List[Mapping[str, Any]] = data["items"]
-    derived: Mapping[str, str] = data.get("derived", {})
-
+    values = _numeric(items, spec["field"], derived)
     if op in ("argmin", "argmax"):
-        values = _numeric(items, spec["field"], derived)
         chooser = min if op == "argmin" else max
-        best_idx = chooser(range(len(items)), key=lambda i: values[i])
-        return items[best_idx]["id"]
-
+        return items[chooser(range(len(items)), key=lambda i: values[i])]["id"]
     if op == "rank":
-        # k is 1-indexed; order "asc" (default) ranks smallest first.
-        k = int(spec["k"])
-        order = spec.get("order", "asc")
-        values = _numeric(items, spec["field"], derived)
-        order_idx = sorted(range(len(items)),
-                           key=lambda i: values[i],
-                           reverse=(order == "desc"))
-        if not 1 <= k <= len(items):
-            raise ValueError("rank k=%d out of range for %d items" % (k, len(items)))
-        return items[order_idx[k - 1]]["id"]
-
-    if op in ("count_ge", "count_le", "count_gt", "count_lt"):
-        threshold = spec["threshold"]
-        values = _numeric(items, spec["field"], derived)
-        cmp = {
-            "count_ge": lambda v: v >= threshold,
-            "count_le": lambda v: v <= threshold,
-            "count_gt": lambda v: v > threshold,
-            "count_lt": lambda v: v < threshold,
-        }[op]
-        return sum(1 for v in values if cmp(v))
-
-    raise ValueError("unknown compute op %r" % op)
+        indices = sorted(
+            range(len(items)), key=lambda i: values[i], reverse=spec.get("order", "asc") == "desc"
+        )
+        return items[indices[spec["k"] - 1]]["id"]
+    threshold = spec["threshold"]
+    compare = {
+        "count_ge": lambda value: value >= threshold,
+        "count_le": lambda value: value <= threshold,
+        "count_gt": lambda value: value > threshold,
+        "count_lt": lambda value: value < threshold,
+    }[op]
+    return sum(1 for value in values if compare(value))
 
 
 def recompute(data: Mapping[str, Any], question: Mapping[str, Any]) -> str:
-    """Recompute a question's correct choice id from source data alone.
-
-    Maps the computed answer value to the choice whose ``value`` equals it.
-    Raises if no choice matches — an unrepresentable answer is a scenario bug.
-    """
-    value = compute_answer_value(data, question["compute"])
+    if not isinstance(question, Mapping) or not isinstance(question.get("choices"), list):
+        raise ValueError("question requires a compute spec and choices list")
+    value = compute_answer_value(data, question.get("compute"))
+    matches = []
     for choice in question["choices"]:
+        if not isinstance(choice, Mapping) or not isinstance(choice.get("id"), str):
+            raise ValueError("question choices require string ids")
         if choice.get("value") == value:
-            return choice["id"]
-    raise ValueError(
-        "computed answer %r for question %r matches no choice value"
-        % (value, question.get("id"))
-    )
+            matches.append(choice["id"])
+    if len(matches) != 1:
+        raise ValueError(
+            "computed answer %r for question %r must match exactly one choice"
+            % (value, question.get("id"))
+        )
+    return matches[0]

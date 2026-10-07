@@ -1,4 +1,4 @@
-"""H1 analysis — Spearman correctness and the divergence finding."""
+"""Correlation and reversal fixtures."""
 
 import unittest
 from dataclasses import replace
@@ -11,6 +11,7 @@ try:
     from scipy.stats import spearmanr as _scipy_spearman
     from scipy.stats import kendalltau as _scipy_kendall
     from scipy.stats import pearsonr as _scipy_pearson
+
     HAVE_SCIPY = True
 except Exception:  # scipy is an optional cross-check only (never a runtime dependency)
     HAVE_SCIPY = False
@@ -23,8 +24,10 @@ class TestSpearman(unittest.TestCase):
 
     def test_with_ties(self):
         # constant second vector -> undefined correlation (nan), must not crash
-        self.assertNotEqual(analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
-                            analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]))  # nan != nan
+        self.assertNotEqual(
+            analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
+            analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
+        )  # nan != nan
 
     @unittest.skipUnless(HAVE_SCIPY, "scipy not installed (optional cross-check)")
     def test_matches_scipy(self):
@@ -42,13 +45,20 @@ class TestSpearman(unittest.TestCase):
     def test_kendall_and_pearson_match_scipy(self):
         cases = [
             ([0.1, 0.5, 0.9, 0.3, 0.6], [3.0, 2.0, 1.0, 4.0, 2.5]),
-            ([0.33, 0.67, 0.67, 0.67, 0.4], [0.45, 0.70, 0.62, 0.68, 0.40]),  # anchor-like, ties
+            (
+                [0.33, 0.67, 0.67, 0.67, 0.4],
+                [0.45, 0.70, 0.62, 0.68, 0.40],
+            ),  # anchor-like, ties
         ]
         for xs, ys in cases:
-            self.assertAlmostEqual(analysis.kendall_tau(xs, ys),
-                                   float(_scipy_kendall(xs, ys).statistic), places=9)
-            self.assertAlmostEqual(analysis.pearson(xs, ys),
-                                   float(_scipy_pearson(xs, ys)[0]), places=9)
+            self.assertAlmostEqual(
+                analysis.kendall_tau(xs, ys),
+                float(_scipy_kendall(xs, ys).statistic),
+                places=9,
+            )
+            self.assertAlmostEqual(
+                analysis.pearson(xs, ys), float(_scipy_pearson(xs, ys)[0]), places=9
+            )
 
 
 class TestH1Analysis(unittest.TestCase):
@@ -56,7 +66,10 @@ class TestH1Analysis(unittest.TestCase):
     def setUpClass(cls):
         cls.scenarios = list(schema.load_all_scenarios().values())
         book = scoring.ScoreBook(
-            scoring.read_all(cls.scenarios, build_readers(["simulated"]), skip_render=True))
+            scoring.read_all(
+                cls.scenarios, build_readers(["simulated"]), skip_render=True
+            )
+        )
         cls.report = analysis.analyze_h1(book, cls.scenarios, SimulatedJudge())
 
     def test_divergence_found(self):
@@ -68,8 +81,12 @@ class TestH1Analysis(unittest.TestCase):
     def test_cards_over_table_reversal_in_every_scenario(self):
         for s in self.report.scenarios:
             pairs = {(r.preferred, r.understood) for r in s.reversals}
-            self.assertIn(("cards", "table"), pairs,
-                          "%s: expected cards-preferred-but-table-understood reversal" % s.scenario_id)
+            self.assertIn(
+                ("cards", "table"),
+                pairs,
+                "%s: expected cards-preferred-but-table-understood reversal"
+                % s.scenario_id,
+            )
 
     def test_preference_and_comprehension_disagree(self):
         # Weak-to-moderate correlation, never a perfect match.
@@ -82,28 +99,50 @@ class TestCrossFamily(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.scenarios = list(schema.load_all_scenarios().values())
-        results = scoring.read_all(cls.scenarios, build_readers(["simulated"]), skip_render=True)
-        mapping = {"simulated:literal": "famA", "simulated:diligent": "famA",
-                   "simulated:careless": "famB"}
-        relabeled = [replace(qr, reader_family=mapping[qr.reader]) for qr in results]
+        results = scoring.read_all(
+            cls.scenarios, build_readers(["simulated"]), skip_render=True
+        )
+        mapping = {
+            "simulated:literal": "famA",
+            "simulated:diligent": "famA",
+            "simulated:careless": "famB",
+        }
+        relabeled = [
+            replace(
+                qr,
+                reader_model_family=mapping[qr.reader],
+                reader_family_resolved=True,
+                reader_family_basis="synthetic-fixture",
+            )
+            for qr in results
+        ]
         cls.book = scoring.ScoreBook(relabeled)
-        cls.cross = analysis.analyze_cross_family(cls.book, cls.scenarios, SimulatedJudge())
+        cls.cross = analysis.analyze_cross_family(
+            cls.book, cls.scenarios, SimulatedJudge()
+        )
 
     def test_two_families_detected(self):
         self.assertEqual(self.cross.n_families, 2)
-        self.assertEqual(sorted(f.family for f in self.cross.families), ["famA", "famB"])
+        self.assertEqual(
+            sorted(f.family for f in self.cross.families), ["famA", "famB"]
+        )
 
     def test_reversal_holds_in_each_family(self):
         for f in self.cross.families:
-            self.assertTrue(f.reversal_holds, "reversal missing in family %s" % f.family)
+            self.assertTrue(
+                f.reversal_holds, "reversal missing in family %s" % f.family
+            )
 
     def test_divergence_survives_and_families_agree(self):
         self.assertTrue(self.cross.survives_across_families)
         self.assertGreater(self.cross.cross_family_agreement, 0.0)
 
     def test_single_family_cannot_survive(self):
-        book = scoring.ScoreBook(scoring.read_all(
-            self.scenarios, build_readers(["simulated"]), skip_render=True))
+        book = scoring.ScoreBook(
+            scoring.read_all(
+                self.scenarios, build_readers(["simulated"]), skip_render=True
+            )
+        )
         cross = analysis.analyze_cross_family(book, self.scenarios, SimulatedJudge())
         self.assertEqual(cross.n_families, 1)
         self.assertFalse(cross.survives_across_families)  # needs >= 2 families

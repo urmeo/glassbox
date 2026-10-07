@@ -1,20 +1,11 @@
-"""The stimulus — what a reader actually consumes.
-
-A stimulus wraps a :class:`~glassbox.interfaces.Presentation` in one of two forms:
-
-* ``image``  — a rendered PNG (what a real vision-language reader sees), plus a text
-  fallback.
-* ``spec``   — no image; the reader works from the presentation's structured values
-  (simulated readers) or its text serialization (real readers in ``--skip-render``).
-
-Keeping both forms behind one type means the readers don't care how the interface
-was produced — only what it presents.
-"""
+"""Wrap a visible text specification or rendered image with its provenance."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
+import copy
+import hashlib
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 from .interfaces import Presentation
 
@@ -22,11 +13,24 @@ from .interfaces import Presentation
 @dataclass(frozen=True)
 class Stimulus:
     presentation: Presentation
-    kind: str                      # "image" or "spec"
-    text: str                      # text serialization (always present)
+    kind: str
+    text: str
     image_path: Optional[str] = None
     media_type: str = "image/png"
+    image_sha256: Optional[str] = None
+    render_metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("image", "spec") or not isinstance(self.text, str):
+            raise ValueError("stimulus requires an image/spec kind and text")
+        if not isinstance(self.render_metadata, dict):
+            raise ValueError("render_metadata must be a dict")
+        object.__setattr__(self, "render_metadata", copy.deepcopy(self.render_metadata))
 
     @property
     def has_image(self) -> bool:
         return self.kind == "image" and self.image_path is not None
+
+    @property
+    def text_sha256(self) -> str:
+        return hashlib.sha256(self.text.encode("utf-8")).hexdigest()
