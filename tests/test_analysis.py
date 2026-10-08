@@ -17,6 +17,25 @@ except Exception:
     HAVE_SCIPY = False
 
 
+class _TruthValue:
+    def __init__(self, value):
+        self.value = bool(value)
+
+    def __bool__(self):
+        return self.value
+
+    def __int__(self):
+        return int(self.value)
+
+
+class _ScalarFloat(float):
+    def __gt__(self, other):
+        return _TruthValue(super().__gt__(other))
+
+    def __lt__(self, other):
+        return _TruthValue(super().__lt__(other))
+
+
 class TestSpearman(unittest.TestCase):
     def test_perfect_and_inverse(self):
         self.assertAlmostEqual(analysis.spearman([1, 2, 3, 4], [1, 2, 3, 4]), 1.0)
@@ -27,6 +46,11 @@ class TestSpearman(unittest.TestCase):
             analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
             analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
         )
+
+    def test_kendall_accepts_scalar_truth_values(self):
+        xs = [_ScalarFloat(value) for value in [1, 2, 3]]
+        ys = [_ScalarFloat(value) for value in [2, 1, 3]]
+        self.assertAlmostEqual(analysis.kendall_tau(xs, ys), 1 / 3)
 
     @unittest.skipUnless(HAVE_SCIPY, "scipy not installed (optional cross-check)")
     def test_matches_scipy(self):

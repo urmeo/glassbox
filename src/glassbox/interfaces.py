@@ -249,7 +249,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .mark { outline: 2px solid #1f7a45; background: #eafaf0; }
 .badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; color: #1f7a45; }
 pre.plain { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px;
-            white-space: pre-wrap; line-height: 1.5; color: #16181d; }
+            white-space: pre-wrap; line-height: 1.5; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (prefers-color-scheme: dark) {
   body { background: #16181d; color: #e6e8ec; }

@@ -105,8 +105,8 @@ def kendall_tau(xs: Sequence[float], ys: Sequence[float]) -> float:
     concordant = discordant = tx = ty = 0
     for i in range(n):
         for j in range(i + 1, n):
-            dx = (xs[i] > xs[j]) - (xs[i] < xs[j])
-            dy = (ys[i] > ys[j]) - (ys[i] < ys[j])
+            dx = int(xs[i] > xs[j]) - int(xs[i] < xs[j])
+            dy = int(ys[i] > ys[j]) - int(ys[i] < ys[j])
             if dx == 0 and dy == 0:
                 continue
             if dx == 0:
