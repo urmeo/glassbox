@@ -16,7 +16,7 @@ from .schema import Scenario
 CEILING_VARIANT = "raw"
 BASELINE_VARIANT = "baseline"
 
-Cell = Tuple[str, str, str]  # (reader, scenario, variant)
+Cell = Tuple[str, str, str]
 
 
 @dataclass(frozen=True)
@@ -179,7 +179,6 @@ class ScoreBook:
         for r in results:
             self._cell.setdefault((r.reader, r.scenario_id, r.variant), []).append(r)
 
-    # --- per-reader metrics ---
     def accuracy(self, reader: str, scenario: str, variant: str) -> float:
         cell = self._cell.get((reader, scenario, variant), [])
         return statistics.fmean(qr.correct for qr in cell) if cell else float("nan")
@@ -198,7 +197,6 @@ class ScoreBook:
     def ceiling_gap(self, reader: str, scenario: str, variant: str) -> float:
         return self.accuracy(reader, scenario, variant) - self.ceiling(reader, scenario)
 
-    # --- replicate spread (matters for stochastic real readers) ---
     def accuracy_by_replicate(
         self, reader: str, scenario: str, variant: str
     ) -> List[float]:
@@ -226,9 +224,8 @@ class ScoreBook:
             fractions.append(chosen.count(modal) / len(chosen))
         return (
             statistics.fmean(fractions) if fractions else float("nan")
-        )  # no data != stable
+        )
 
-    # --- cross-reader aggregates ---
     def mean_lift(self, scenario: str, variant: str) -> float:
         return (
             statistics.fmean(self.lift(r, scenario, variant) for r in self.readers)
@@ -243,7 +240,6 @@ class ScoreBook:
             else float("nan")
         )
 
-    # --- families / structure ---
     def family_of(self, reader: str) -> str:
         return self._family.get(reader, "unknown")
 

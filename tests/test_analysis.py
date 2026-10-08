@@ -13,7 +13,7 @@ try:
     from scipy.stats import pearsonr as _scipy_pearson
 
     HAVE_SCIPY = True
-except Exception:  # scipy is an optional cross-check only (never a runtime dependency)
+except Exception:
     HAVE_SCIPY = False
 
 
@@ -23,18 +23,17 @@ class TestSpearman(unittest.TestCase):
         self.assertAlmostEqual(analysis.spearman([1, 2, 3, 4], [4, 3, 2, 1]), -1.0)
 
     def test_with_ties(self):
-        # constant second vector -> undefined correlation (nan), must not crash
         self.assertNotEqual(
             analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
             analysis.spearman([1, 2, 2, 3], [1, 1, 1, 1]),
-        )  # nan != nan
+        )
 
     @unittest.skipUnless(HAVE_SCIPY, "scipy not installed (optional cross-check)")
     def test_matches_scipy(self):
         cases = [
             ([0.1, 0.5, 0.9, 0.3], [3.0, 2.0, 1.0, 4.0]),
-            ([-0.44, 0.33, 0.44], [0.605, 0.290, 0.760]),  # loans comp vs pref
-            ([1.0, 2.0, 2.0, 4.0, 5.0], [5.0, 4.0, 4.0, 2.0, 1.0]),  # ties both sides
+            ([-0.44, 0.33, 0.44], [0.605, 0.290, 0.760]),
+            ([1.0, 2.0, 2.0, 4.0, 5.0], [5.0, 4.0, 4.0, 2.0, 1.0]),
         ]
         for xs, ys in cases:
             mine = analysis.spearman(xs, ys)
@@ -48,7 +47,7 @@ class TestSpearman(unittest.TestCase):
             (
                 [0.33, 0.67, 0.67, 0.67, 0.4],
                 [0.45, 0.70, 0.62, 0.68, 0.40],
-            ),  # anchor-like, ties
+            ),
         ]
         for xs, ys in cases:
             self.assertAlmostEqual(
@@ -89,7 +88,6 @@ class TestH1Analysis(unittest.TestCase):
             )
 
     def test_preference_and_comprehension_disagree(self):
-        # Weak-to-moderate correlation, never a perfect match.
         self.assertLess(self.report.mean_spearman, 0.99)
 
 
@@ -145,7 +143,7 @@ class TestCrossFamily(unittest.TestCase):
         )
         cross = analysis.analyze_cross_family(book, self.scenarios, SimulatedJudge())
         self.assertEqual(cross.n_families, 1)
-        self.assertFalse(cross.survives_across_families)  # needs >= 2 families
+        self.assertFalse(cross.survives_across_families)
 
 
 if __name__ == "__main__":

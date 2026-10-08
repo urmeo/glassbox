@@ -13,12 +13,10 @@ class TestSafeExpression(unittest.TestCase):
         self.assertEqual(compute.evaluate_expr("-5 + 2", {}), -3)
 
     def test_power_operator_rejected(self):
-        # Exponentiation is excluded: `9**9**9` must not be evaluable (compute-DoS).
         with self.assertRaises(compute.ExpressionError):
             compute.evaluate_expr("2 ** 3", {})
 
     def test_division_by_zero_is_expression_error(self):
-        # In-whitelist arithmetic errors are reported cleanly, never a raw traceback.
         with self.assertRaises(compute.ExpressionError):
             compute.evaluate_expr("x / 0", {"x": 5})
 
@@ -34,7 +32,6 @@ class TestSafeExpression(unittest.TestCase):
             compute.evaluate_expr("mystery + 1", {"known": 1})
 
     def test_code_injection_rejected(self):
-        # None of these are arithmetic: the evaluator must refuse them all.
         for evil in (
             "__import__('os').system('echo hi')",
             "().__class__",
@@ -119,7 +116,7 @@ class TestRecompute(unittest.TestCase):
         question = {
             "id": "q",
             "compute": {"op": "argmin", "field": "x"},
-            "choices": [{"id": "a", "value": "A"}],  # no choice for B
+            "choices": [{"id": "a", "value": "A"}],
         }
         with self.assertRaises(ValueError):
             compute.recompute(data, question)

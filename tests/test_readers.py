@@ -32,7 +32,6 @@ class TestReaderRegistry(unittest.TestCase):
             build_reader("martian:x")
 
     def test_at_least_three_readers(self):
-        # Success criterion: >= 3 readers usable offline.
         self.assertGreaterEqual(len(build_readers(["simulated"])), 3)
 
 
@@ -60,13 +59,12 @@ class TestCarelessSlip(unittest.TestCase):
         return self.reader.answer(self.loans, self.q, st).choice_id
 
     def test_slips_to_runner_up_on_close_call_without_highlight(self):
-        # loans cheapest: true B vs A within 5% and the table shows no highlight.
-        self.assertEqual(self._answer("table"), "a")  # slip to the runner-up (wrong)
+        self.assertEqual(self._answer("table"), "a")
 
     def test_highlight_of_true_extreme_rescues_the_slip(self):
         self.assertEqual(
             self._answer("annotated"), "b"
-        )  # trusts the highlight (correct)
+        )
 
 
 class TestH1Fixture(unittest.TestCase):
@@ -86,7 +84,6 @@ class TestH1Fixture(unittest.TestCase):
             )
 
     def test_diligent_computes_from_plain_data(self):
-        # With every raw field visible, a diligent reader answers perfectly.
         for sid, s in self.scenarios.items():
             self.assertEqual(
                 _score(self.diligent, s, "baseline"),
@@ -95,7 +92,6 @@ class TestH1Fixture(unittest.TestCase):
             )
 
     def test_cards_hurt_a_capable_reader(self):
-        # The heart of H1: a capable reader does WORSE on cards than on plain text.
         for sid, s in self.scenarios.items():
             cards = _score(self.diligent, s, "cards")
             baseline = _score(self.diligent, s, "baseline")
@@ -106,7 +102,6 @@ class TestH1Fixture(unittest.TestCase):
             )
 
     def test_honest_table_helps_literal_reader(self):
-        # Showing the computed metric lets even a literal reader answer its question.
         for sid, s in self.scenarios.items():
             self.assertGreater(
                 _score(self.literal, s, "table"),

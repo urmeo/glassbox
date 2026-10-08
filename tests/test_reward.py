@@ -29,7 +29,6 @@ class TestReward(unittest.TestCase):
     def test_search_selects_the_computed_metric(self):
         ranked = reward.search_best_interface(self.scenarios, self.readers)
         best_features, best_reward = ranked[0]
-        # the winning interface must show the computed metric
         self.assertIn("derived", best_features)
         self.assertGreater(best_reward, 0.0)
 
@@ -58,9 +57,7 @@ class TestReward(unittest.TestCase):
             reward.model_family("openrouter:qwen/qwen3-vl-8b-instruct"), "qwen"
         )
         self.assertEqual(reward.model_family("simulated:literal"), "simulated")
-        # a Qwen model under a non-'qwen' alias is 'unknown', not silently allowed
         self.assertEqual(reward.model_family("openrouter:alibaba/vl-max"), "unknown")
-        # a claude model whose name contains 'qwen' is NOT false-flagged as qwen
         self.assertEqual(reward.model_family("anthropic:claude-3-qwenish"), "anthropic")
 
     def test_optimize_report_labels_simulated(self):

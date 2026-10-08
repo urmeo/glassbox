@@ -47,7 +47,6 @@ class TestScoreBook(unittest.TestCase):
         self.assertAlmostEqual(self.book.lift(r, sid, v), expected)
 
     def test_cards_have_negative_mean_lift(self):
-        # The polished cards mislead: negative comprehension lift in every scenario.
         for sid in self.book.scenarios:
             self.assertLess(
                 self.book.mean_lift(sid, "cards"),
@@ -66,7 +65,6 @@ class TestScoreBook(unittest.TestCase):
         self.assertFalse(self.book.any_real())
 
     def test_dimensions_meet_success_criteria(self):
-        # >= 3 scenarios x >= 3 interface variants x >= 3 readers.
         self.assertGreaterEqual(len(self.book.scenarios), 3)
         self.assertGreaterEqual(len(self.book.interface_variants()), 3)
         self.assertGreaterEqual(len(self.book.readers), 3)
@@ -116,7 +114,6 @@ class TestReplicates(unittest.TestCase):
             )
         )
         self.assertEqual(book.replicate_count(), 4)
-        # A reader that flips answers is not perfectly stable.
         self.assertLess(book.answer_stability("synthetic:flaky", "loans", "table"), 1.0)
 
     def test_family_grouping(self):

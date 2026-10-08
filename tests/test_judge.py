@@ -32,8 +32,8 @@ class TestPairwise(unittest.TestCase):
         table = interfaces.variant(self.loans, "table")
         self.assertEqual(
             j.compare(self.loans, cards, table), "A"
-        )  # cards more polished
-        self.assertEqual(j.compare(self.loans, table, cards), "B")  # order-independent
+        )
+        self.assertEqual(j.compare(self.loans, table, cards), "B")
 
     def test_winrate_ranking(self):
         j = PairwiseRatingJudge(SimulatedPairwiseJudge())
@@ -41,9 +41,9 @@ class TestPairwise(unittest.TestCase):
             v: j.preference(self.loans, interfaces.variant(self.loans, v))
             for v in ("cards", "table", "annotated")
         }
-        self.assertEqual(wr["annotated"], 1.0)  # beats both
-        self.assertEqual(wr["table"], 0.0)  # beats none
-        self.assertAlmostEqual(wr["cards"], 0.5)  # beats table only
+        self.assertEqual(wr["annotated"], 1.0)
+        self.assertEqual(wr["table"], 0.0)
+        self.assertAlmostEqual(wr["cards"], 0.5)
 
     def test_build_judge_pairwise(self):
         self.assertIsInstance(build_judge("pairwise"), PairwiseRatingJudge)
@@ -61,7 +61,7 @@ class TestPairwise(unittest.TestCase):
             for v in ("cards", "table", "annotated")
         }
         for v, rate in wr.items():
-            self.assertAlmostEqual(rate, 0.5, msg=v)  # all ties -> no variant favored
+            self.assertAlmostEqual(rate, 0.5, msg=v)
 
     def test_pairwise_preserves_divergence(self):
         scenarios = list(schema.load_all_scenarios().values())

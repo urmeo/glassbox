@@ -33,7 +33,6 @@ class TestReport(unittest.TestCase):
             self.cross,
             skip_render=True,
         )
-        # round-trips through JSON
         restored = json.loads(json.dumps(payload))
         self.assertIn("meta", restored)
         self.assertIn("metrics", restored)
@@ -41,7 +40,6 @@ class TestReport(unittest.TestCase):
         self.assertIn("cross_family", restored)
         self.assertTrue(restored["h1_summary"]["divergence_found"])
         self.assertEqual(restored["meta"]["renderer"], "skip-render")
-        # every scenario has a provenance hash
         for s in self.scenarios:
             self.assertIn(s.id, restored["meta"]["scenarios"])
 
@@ -54,8 +52,6 @@ class TestReport(unittest.TestCase):
         self.assertIn("Cross-family agreement", md)
 
     def test_results_json_has_no_bare_nan(self):
-        # The single-family cross_family_agreement is undefined (nan); the written file
-        # must serialize it as null, not bare NaN (which strict JSON parsers reject).
         with tempfile.TemporaryDirectory() as tmp:
             report.write_run(
                 tmp, self.scenarios, self.results, self.book, self.h1, self.cross, True
@@ -68,7 +64,7 @@ class TestReport(unittest.TestCase):
         def _reject(token):
             raise ValueError("non-standard JSON constant: " + token)
 
-        json.loads(raw, parse_constant=_reject)  # strict parse must succeed
+        json.loads(raw, parse_constant=_reject)
 
     def test_scenario_hash_stable(self):
         loans = schema.load_all_scenarios()["loans"]

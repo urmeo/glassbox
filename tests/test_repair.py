@@ -10,7 +10,7 @@ class TestRepair(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.loans = schema.load_all_scenarios()["loans"]
-        cls.q = cls.loans.questions[0]  # cheapest_total
+        cls.q = cls.loans.questions[0]
 
     def test_literal_trips_then_understands(self):
         r = build_reader("simulated:literal")
@@ -23,7 +23,7 @@ class TestRepair(unittest.TestCase):
     def test_first_repair_shows_the_metric(self):
         r = build_reader("simulated:literal")
         res = repair.repair(self.loans, r, self.q, skip_render=True)
-        self.assertIn("derived", res.turns[1].features)  # the computed metric is now shown
+        self.assertIn("derived", res.turns[1].features)
 
     def test_every_simulated_reader_converges(self):
         for r in build_readers(["simulated"]):

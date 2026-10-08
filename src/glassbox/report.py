@@ -124,7 +124,6 @@ def _pct(x: float) -> str:
     return "%+.0f pts" % (x * 100)
 
 
-# --- results.json -----------------------------------------------------------
 
 
 def build_results(
@@ -209,7 +208,6 @@ def build_results(
     }
 
 
-# --- report.md --------------------------------------------------------------
 
 
 def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
@@ -374,7 +372,6 @@ def write_run(
     return {"results": results_path, "report": report_path}
 
 
-# --- transcript.md (repair) -------------------------------------------------
 
 
 def render_transcript_md(
@@ -446,7 +443,6 @@ def write_repair(
     return {"transcript": transcript_path, "repair": json_path}
 
 
-# --- anchor report (H3) -----------------------------------------------------
 
 ANCHOR_FIXTURE_CAVEAT = (
     "> **Fixture anchor set.** The human numbers here are synthetic, invented only to "
@@ -456,7 +452,7 @@ ANCHOR_FIXTURE_CAVEAT = (
 
 
 def _corr(x: float) -> str:
-    return "undefined" if not math.isfinite(x) else "%.2f" % x  # undefined correlation
+    return "undefined" if not math.isfinite(x) else "%.2f" % x
 
 
 def render_anchor_md(result: AnchorResult) -> str:
@@ -470,7 +466,7 @@ def render_anchor_md(result: AnchorResult) -> str:
         lines.append(ANCHOR_FIXTURE_CAVEAT)
         lines.append("")
     if result.readers and all(r.startswith("simulated:") for r in result.readers):
-        lines.append(SIMULATED_CAVEAT)  # model side is simulated, too
+        lines.append(SIMULATED_CAVEAT)
         lines.append("")
     lines.append(
         "**Correlation (model vs human accuracy, %d items):** Spearman %s · "
@@ -541,7 +537,6 @@ def write_anchor(
     return {"report": report_path, "anchor": json_path}
 
 
-# --- optimize report (M4, offline generator search) -------------------------
 
 OPTIMIZE_CAVEAT = (
     "> **In-sample feature search.** Candidate selection and reported scores use the "
@@ -563,7 +558,7 @@ def render_optimize_md(
     lines.append(OPTIMIZE_CAVEAT)
     lines.append("")
     if ev.all_readers_simulated:
-        lines.append(SIMULATED_CAVEAT)  # the reward numbers come from designed fixtures
+        lines.append(SIMULATED_CAVEAT)
         lines.append("")
     elif ev.any_reader_simulated:
         lines.extend(

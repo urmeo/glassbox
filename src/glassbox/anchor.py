@@ -183,7 +183,6 @@ def run_anchor(
         replicates=replicates,
     )
 
-    # Per-item model accuracy, pooled over readers and replicates.
     by_item: Dict = {}
     for qr in results:
         by_item.setdefault((qr.scenario_id, qr.question_id), []).append(qr.correct)

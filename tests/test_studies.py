@@ -54,7 +54,6 @@ class TestRunStudy(unittest.TestCase):
             self.assertTrue(os.path.isfile(result.paths["report"]))
             with open(result.paths["results"]) as fh:
                 data = json.load(fh)
-            # the config is echoed into the results for provenance
             self.assertEqual(data["meta"]["study"]["id"], "offline_demo")
             self.assertIn("cross_family", data)
 

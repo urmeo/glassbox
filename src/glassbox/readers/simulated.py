@@ -11,7 +11,7 @@ from ..stimuli import Stimulus
 from .base import Answer, Reader, apply_op, guess_choice, value_to_choice
 
 SIMULATED_PERSONAS = ("literal", "diligent", "careless")
-CLOSE_MARGIN = 0.05  # relative gap under which a "careless" reader may slip
+CLOSE_MARGIN = 0.05
 
 
 class SimulatedReader(Reader):
@@ -59,11 +59,9 @@ class SimulatedReader(Reader):
         target = question.compute.get("field")
         order = p.order
 
-        # 1. Read the answer field directly if the interface shows it.
         if target and all(p.shows_field(i, target) for i in order):
             return {i: p.shown[i][target] for i in order}, "read"
 
-        # 2. Compute a derived answer field, if the reader computes and every input is shown.
         if self.persona in ("diligent", "careless") and target in scenario.derived:
             inputs = compute.expr_fields(scenario.derived[target])
             if all(all(f in p.shown[i] for f in inputs) for i in order):
@@ -75,12 +73,10 @@ class SimulatedReader(Reader):
                     "computed",
                 )
 
-        # 3. Fall back to the interface's emphasized value (the headline; may mislead).
         emph = p.emphasized_field
         if emph and all(p.shows_field(i, emph) for i in order):
             return {i: p.shown[i][emph] for i in order}, "headline"
 
-        # 4. Nothing usable on screen.
         return None, "guess"
 
     def _careless_adjust(
@@ -99,8 +95,7 @@ class SimulatedReader(Reader):
         v1, v2 = values[top], values[runner]
         gap = abs(v1 - v2) / max(abs(v1), abs(v2), 1)
         if gap >= CLOSE_MARGIN:
-            return answer_value  # a comfortable margin; even a careless reader is fine
-        # A close call: trust a highlight only when it marks this question's true extreme.
+            return answer_value
         if p.highlight_item is not None and p.highlight_item == top:
             return top
         return runner
