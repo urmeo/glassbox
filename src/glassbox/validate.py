@@ -16,7 +16,6 @@ def validate_scenario(scenario: Scenario) -> List[str]:
     except SchemaError as exc:
         return [str(exc)]
 
-    # Every derived expression must evaluate for every item.
     for name, expr in scenario.derived.items():
         for item in scenario.items:
             try:
@@ -26,7 +25,6 @@ def validate_scenario(scenario: Scenario) -> List[str]:
                     "%s: derived %r fails on item %r: %s" % (scenario.id, name, item["id"], exc)
                 )
 
-    # Every question's authored answer must equal the recomputed answer.
     for q in scenario.questions:
         try:
             recomputed = compute.recompute(

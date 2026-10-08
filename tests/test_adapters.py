@@ -38,7 +38,7 @@ def _spec_stimulus(scenario, variant="baseline"):
 class AdapterTestBase(unittest.TestCase):
     def setUp(self):
         self.loans = schema.load_all_scenarios()["loans"]
-        self.q = self.loans.questions[0]  # cheapest_total, choices a/b/c
+        self.q = self.loans.questions[0]
 
 
 class TestAnthropicPayload(AdapterTestBase):
@@ -49,10 +49,9 @@ class TestAnthropicPayload(AdapterTestBase):
         self.assertEqual(payload["model"], "claude-sonnet-5")
         self.assertEqual(payload["max_tokens"], 512)
         content = payload["messages"][0]["content"]
-        self.assertEqual(content[0]["type"], "image")  # image before text
+        self.assertEqual(content[0]["type"], "image")
         self.assertEqual(content[0]["source"]["type"], "base64")
         self.assertEqual(content[0]["source"]["media_type"], "image/png")
-        # raw base64, no data: prefix
         self.assertEqual(
             content[0]["source"]["data"], base64.b64encode(PNG_BYTES).decode()
         )
@@ -84,7 +83,7 @@ class TestOpenAICompatPayload(AdapterTestBase):
         headers = reader._headers("sk-test")
         self.assertEqual(headers["authorization"], "Bearer sk-test")
         self.assertEqual(headers["X-Title"], "Glass Box")
-        self.assertNotIn("HTTP-Referer", headers)  # only when GLASSBOX_APP_URL is set
+        self.assertNotIn("HTTP-Referer", headers)
 
     def test_extract_text(self):
         self.assertEqual(openai_text({"choices": [{"message": {"content": "A"}}]}), "A")
@@ -98,7 +97,7 @@ class TestChoiceParsing(AdapterTestBase):
             "b) Offer B": "b",
             "The answer is C.": "c",
             "Answer: A": "a",
-            "Offer A": "a",  # text match
+            "Offer A": "a",
         }
         for reply, expected in cases.items():
             self.assertEqual(parse_choice(reply, self.q), expected, "reply=%r" % reply)
@@ -108,8 +107,6 @@ class TestChoiceParsing(AdapterTestBase):
         self.assertIsNone(parse_choice("purple monkey dishwasher", self.q))
 
     def test_verbose_reply_uses_the_concluding_letter(self):
-        # A reasoning reply concludes with its pick: "…Offer C vs B, I'd pick B" is B,
-        # not the first-mentioned C (which would silently mis-score a correct reader).
         self.assertEqual(
             parse_choice("Comparing Offer C to B, I would pick B.", self.q), "b"
         )
@@ -120,7 +117,7 @@ class TestChoiceParsing(AdapterTestBase):
     def test_skip_render_prompt_inlines_interface_text(self):
         stim = _spec_stimulus(self.loans)
         prompt = build_mcq_prompt(self.q, stim, image=False)
-        self.assertIn("Offer A", prompt)  # the interface text is present
+        self.assertIn("Offer A", prompt)
         self.assertIn(self.q.stem, prompt)
 
 

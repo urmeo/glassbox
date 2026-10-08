@@ -37,7 +37,7 @@ class AnthropicReader(Reader):
 
     def build_payload(self, question: Question, stimulus: Stimulus) -> Dict[str, Any]:
         content = []
-        if stimulus.has_image:  # Preserve the image-first wire format.
+        if stimulus.has_image:
             content.append(
                 {
                     "type": "image",

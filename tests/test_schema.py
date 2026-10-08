@@ -40,7 +40,6 @@ class TestSchema(unittest.TestCase):
 
     def test_choice_text_value_mismatch_rejected(self):
         raw = copy.deepcopy(BASE)
-        # value "A" but text names Banana: a real reader would be marked wrong.
         raw["questions"][0]["choices"][0] = {"id": "a", "text": "Banana", "value": "A"}
         with self.assertRaises(schema.SchemaError):
             schema.parse_scenario(raw)
@@ -59,9 +58,9 @@ class TestSchema(unittest.TestCase):
 
     def test_division_by_zero_derived_reported_not_crashed(self):
         raw = copy.deepcopy(BASE)
-        raw["data"]["derived"] = {"ratio": "x / z"}  # z=0 on item A
+        raw["data"]["derived"] = {"ratio": "x / z"}
         s = schema.parse_scenario(raw)
-        errors = validate_scenario(s)  # must report, not raise
+        errors = validate_scenario(s)
         self.assertTrue(any("ratio" in e for e in errors), errors)
 
 

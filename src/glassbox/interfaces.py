@@ -9,7 +9,6 @@ from typing import Any, Dict, FrozenSet, List, Optional
 from . import compute
 from .schema import Question, Scenario, raw_field_names, validate_structure
 
-# Preset feature sets for the named variants.
 VARIANT_FEATURES: Dict[str, FrozenSet[str]] = {
     "raw": frozenset({"all_raw"}),
     "baseline": frozenset({"all_raw", "as_text"}),
@@ -18,7 +17,6 @@ VARIANT_FEATURES: Dict[str, FrozenSet[str]] = {
     "annotated": frozenset({"detail", "derived", "highlight", "sorted", "polished"}),
 }
 
-# The two reference conditions and the interfaces under test (H1 comparison set).
 REFERENCE_VARIANTS = ("raw", "baseline")
 INTERFACE_VARIANTS = ("cards", "table", "annotated")
 ALL_VARIANTS = REFERENCE_VARIANTS + INTERFACE_VARIANTS
@@ -31,10 +29,10 @@ class Presentation:
     scenario_id: str
     variant: str
     features: FrozenSet[str]
-    order: List[str]  # item ids in display order
-    shown: Dict[str, Dict[str, Any]]  # item id -> {field: value} the reader can read
-    emphasized_field: Optional[str]  # the value the interface presents as "the answer"
-    highlight_item: Optional[str]  # item id the interface visually marks, or None
+    order: List[str]
+    shown: Dict[str, Dict[str, Any]]
+    emphasized_field: Optional[str]
+    highlight_item: Optional[str]
     primary_metric: str
     primary_extreme: str
     unit: str = ""
@@ -66,7 +64,6 @@ class Presentation:
         return render_text(self)
 
 
-# --- value formatting -------------------------------------------------------
 
 
 def _num(v: Any) -> str:
@@ -89,7 +86,6 @@ def format_value(v: Any, unit: str) -> str:
     return _num(v)
 
 
-# --- building a presentation from a feature set -----------------------------
 
 
 def build(
@@ -229,7 +225,6 @@ def with_features(
     return build(scenario, combined, variant=name, target=target)
 
 
-# --- rendering --------------------------------------------------------------
 
 _CSS = """
 :root { color-scheme: light dark; }
@@ -300,7 +295,7 @@ def render_html(p: Presentation) -> str:
     if "polished" in p.features and "detail" not in p.features and "all_raw" not in p.features:
         return _doc(p.title, head + desc + _render_cards(p))
 
-    if "polished" in p.features:  # annotated: polished cards WITH the computed metric
+    if "polished" in p.features:
         return _doc(p.title, head + desc + _render_cards(p, show_metric=True))
 
     return _doc(p.title, head + desc + _render_table(p))
@@ -356,7 +351,6 @@ def _render_cards(p: Presentation, show_metric: bool = False) -> str:
 
 
 def _render_table(p: Presentation) -> str:
-    # Column order: label, then shown raw fields (stable), then the metric last if shown.
     raw_cols: List[str] = []
     for iid in p.order:
         for f in p.shown[iid]:

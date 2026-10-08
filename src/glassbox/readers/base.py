@@ -16,9 +16,9 @@ from ..stimuli import Stimulus
 class Answer:
     """A reader's response to one question."""
 
-    choice_id: Optional[str]  # the chosen choice id, or None if unparseable
-    method: str = ""  # how it was derived ("read"/"computed"/"headline"/"guess"/"api")
-    raw: str = ""  # raw model output, for real readers
+    choice_id: Optional[str]
+    method: str = ""
+    raw: str = ""
     prompt_sha256: Optional[str] = None
 
 
@@ -40,7 +40,6 @@ class Reader:
         raise NotImplementedError
 
 
-# Shared question operations.
 
 
 def apply_op(
@@ -82,7 +81,6 @@ def guess_choice(question: Question) -> str:
     return question.choices[0].id
 
 
-# Shared MCQ formatting and parsing.
 
 
 def _letter(index: int) -> str:
@@ -102,7 +100,6 @@ def build_mcq_prompt(question: Question, stimulus: Stimulus, image: bool) -> str
         if image
         else ("The interface is shown below as text:\n\n" + stimulus.text + "\n\n")
     )
-    # Single pass so a literal "{options}" in a stem or interface text is not re-substituted.
     fields = {"context_block": context_block, "stem": question.stem, "options": options}
     return re.sub(
         r"\{(context_block|stem|options)\}", lambda m: fields[m.group(1)], template

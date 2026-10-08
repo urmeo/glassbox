@@ -23,7 +23,6 @@ def parse_choice_letter(reply: str, allowed: Sequence[str]) -> Optional[str]:
     if not isinstance(reply, str) or not reply.strip():
         return None
     text = reply.strip()
-    # A labeled option may end the line or introduce an explicit rationale.
     letter = (
         r"[\s\"'([{]*([A-Za-z])\b[\"')\]}]*"
         r"(?=$|[ \t]*[.,;!?)(]|[ \t]*\n|[ \t]+(?:because|since|due\s+to|as\b|over\b))"

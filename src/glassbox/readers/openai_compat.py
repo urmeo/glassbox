@@ -70,7 +70,7 @@ class OpenAICompatReader(Reader):
         if self.family == "openrouter":
             headers["X-Title"] = "Glass Box"
             app_url = os.environ.get("GLASSBOX_APP_URL")
-            if app_url:  # optional attribution only; omitted unless set
+            if app_url:
                 headers["HTTP-Referer"] = app_url
         return headers
 

@@ -17,7 +17,6 @@ class TestRender(unittest.TestCase):
         self.assertIsNone(st.image_path)
 
     def test_screenshot_wraps_exec_failure_as_render_error(self):
-        # Missing executables become a RenderError for the CLI.
         p = interfaces.variant(self.loans, "table")
         saved = os.environ.get("GLASSBOX_CHROME")
         os.environ["GLASSBOX_CHROME"] = "/nonexistent/chrome-binary-xyz"

@@ -48,7 +48,6 @@ class TestAnchorSet(unittest.TestCase):
             anchor.parse_anchor_set(bad)
 
     def test_is_fixture_defaults_true(self):
-        # An unlabeled set is treated as a fixture (safe) rather than emitting an H3 claim.
         raw = copy.deepcopy(VALID)
         del raw["is_fixture"]
         self.assertTrue(anchor.parse_anchor_set(raw).is_fixture)
@@ -65,7 +64,7 @@ class TestRunAnchor(unittest.TestCase):
     def test_correlations_computed(self):
         self.assertEqual(self.result.n_items, 9)
         for c in (self.result.spearman, self.result.pearson, self.result.kendall):
-            self.assertEqual(c, c)  # not nan
+            self.assertEqual(c, c)
             self.assertGreaterEqual(c, -1.0)
             self.assertLessEqual(c, 1.0)
 

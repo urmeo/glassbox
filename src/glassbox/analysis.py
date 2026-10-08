@@ -14,7 +14,6 @@ from . import interfaces
 from .schema import Scenario
 
 
-# --- rank correlation (stdlib) ----------------------------------------------
 
 
 def _fractional_ranks(values: Sequence[float]) -> List[float]:
@@ -124,23 +123,22 @@ def kendall_tau(xs: Sequence[float], ys: Sequence[float]) -> float:
     return (concordant - discordant) / denom
 
 
-# --- H1 structures ----------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class InterfaceRow:
     variant: str
-    comp_lift: float  # mean comprehension lift across readers
+    comp_lift: float
     mean_accuracy: float
     pref_score: float
-    comp_rank: int  # 1 = best understood
-    pref_rank: int  # 1 = most preferred
+    comp_rank: int
+    pref_rank: int
 
 
 @dataclass(frozen=True)
 class Reversal:
-    preferred: str  # variant preferred more ...
-    understood: str  # ... yet understood less than this one
+    preferred: str
+    understood: str
     pref_gap: float
     comp_gap: float
 
@@ -199,7 +197,7 @@ def _reader_agreement(book: ScoreBook, scenario: str, variants: List[str]) -> fl
     for i in range(len(readers)):
         for j in range(i + 1, len(readers)):
             rho = spearman(vecs[readers[i]], vecs[readers[j]])
-            if rho == rho:  # skip nan (a constant vector)
+            if rho == rho:
                 corrs.append(rho)
     return statistics.fmean(corrs) if corrs else float("nan")
 
@@ -274,15 +272,14 @@ def analyze_h1(
     )
 
 
-# --- resolved model-family analysis ---
 
 
 @dataclass(frozen=True)
 class FamilyComprehension:
     family: str
     readers: List[str]
-    comp_lift: Dict[str, float]  # interface variant -> mean lift within this family
-    reversal_holds: bool  # some interface preferred over another is understood less
+    comp_lift: Dict[str, float]
+    reversal_holds: bool
     reversals: List[Tuple[str, str]] = field(default_factory=list)
 
 
@@ -290,9 +287,9 @@ class FamilyComprehension:
 class CrossFamilyAnalysis:
     families: List[FamilyComprehension]
     interface_variants: List[str]
-    preference: Dict[str, float]  # variant -> mean preference (family-independent)
-    cross_family_agreement: float  # mean pairwise Spearman of family comp-lift vectors
-    survives_across_families: bool  # >=2 families and the reversal holds in every one
+    preference: Dict[str, float]
+    cross_family_agreement: float
+    survives_across_families: bool
     unresolved_readers: List[str] = field(default_factory=list)
     common_reversals: List[Tuple[str, str]] = field(default_factory=list)
     judge_target: str = "unknown"
@@ -325,7 +322,6 @@ def analyze_cross_family(
     """Pool lift within resolved model families; compare each with the same judge."""
     variants = book.interface_variants()
 
-    # Mean judge score over scenarios.
     pref_totals = {v: [] for v in variants}
     for scenario in scenarios:
         presentations = [interfaces.variant(scenario, v) for v in variants]
@@ -353,14 +349,13 @@ def analyze_cross_family(
             )
         )
 
-    # Cross-family agreement: do families rank interfaces the same way by comprehension?
     corrs = []
     for a in range(len(families)):
         for b in range(a + 1, len(families)):
             va = [families[a].comp_lift[v] for v in variants]
             vb = [families[b].comp_lift[v] for v in variants]
             rho = spearman(va, vb)
-            if rho == rho:  # skip nan (a constant vector)
+            if rho == rho:
                 corrs.append(rho)
     agreement = statistics.fmean(corrs) if corrs else float("nan")
 

@@ -13,7 +13,6 @@ from .readers.base import Reader
 from .schema import Scenario
 from .families import canonical_family, model_family as _model_family
 
-# The features a generator may toggle when composing an interface.
 GENERATOR_FEATURE_POOL = ["detail", "derived", "highlight", "sorted", "polished"]
 BASELINE_VARIANT = "baseline"
 CARDS_VARIANT = "cards"
@@ -87,12 +86,12 @@ def search_best_interface(
 @dataclass(frozen=True)
 class EvalResult:
     generator_features: FrozenSet[str]
-    generator_reward: float  # comprehension lift of the optimized interface
+    generator_reward: float
     cards_reward: (
-        float  # comprehension lift of polished cards (preference-tuned analog)
+        float
     )
-    beats_preference_tuned: bool  # generator > cards on comprehension
-    beats_plaintext: bool  # generator > 0 (baseline is the zero point)
+    beats_preference_tuned: bool
+    beats_plaintext: bool
     candidate_count: int = 32
     scenario_count: int = 0
     reader_count: int = 0
