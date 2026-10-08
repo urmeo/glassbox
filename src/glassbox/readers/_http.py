@@ -85,7 +85,7 @@ def post_json(
                 return result
         except urllib.error.HTTPError as exc:
             try:
-                body = exc.read().decode("utf-8", "replace")[:500]
+                body = exc.read().decode("utf-8", "replace")
             finally:
                 exc.close()
             for name, value in headers.items():
@@ -93,7 +93,7 @@ def post_json(
                     secret = value.removeprefix("Bearer ")
                     if secret:
                         body = body.replace(secret, "[redacted]")
-            last = ReaderAPIError("HTTP %s from %s: %s" % (exc.code, url, body))
+            last = ReaderAPIError("HTTP %s from %s: %s" % (exc.code, url, body[:500]))
             if exc.code in _RETRYABLE and attempt < retries:
                 continue
             raise last
