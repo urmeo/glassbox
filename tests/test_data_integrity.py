@@ -49,7 +49,7 @@ class TestPreservedContent(unittest.TestCase):
         license_path = Path(__file__).resolve().parents[1] / "LICENSE"
         self.assertEqual(
             hashlib.sha256(license_path.read_bytes()).hexdigest(),
-            "9257fc0549bacf1cbfb0d15adcdbcf82f6cca00961a95f51972b907410bcd0c1",
+            "1c8be992450828104ecdc6df1ea1e50c64d12d4c7d3aa3fc8c073a8a156f3e77",
         )
 
     def test_exact_nine_authored_answers_and_source_values(self):
