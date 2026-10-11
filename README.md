@@ -30,7 +30,7 @@ glassbox run --readers simulated --skip-render --out outputs/demo
 
 ## Limits
 
-- Synthetic fixtures; human validation unrun.
+- Synthetic fixtures; no human validation study has been run.
 - Feature search reuses scored questions.
 - Live providers and training untested.
 
