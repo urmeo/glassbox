@@ -4,16 +4,12 @@ GlassBox compares question accuracy across interfaces built from the same numeri
 It renders each layout, collects multiple-choice answers, and scores them against
 computed keys. A separate judge scores the interfaces for ranking comparisons.
 
+![GlassBox pipeline: scenario data to interface views, reader answers, accuracy and independent judge scores, ranking comparison, and saved results. Repair, search, and human-accuracy comparison run separately.](docs/img/pipeline.svg)
+
+Reader accuracy and judge ratings meet only in the ranking comparison. Validation,
+repair, search, and anchoring are separate commands.
+
 The core uses Python 3.9+ and the standard library. Chrome is optional for screenshots.
-
-## Pipeline
-
-```mermaid
-flowchart LR
-    D[Scenario values] --> I[Cards / table / annotated]
-    I --> S[PNG or text] --> A[Reader answers] --> M[Accuracy and lift] --> R[Report]
-    I --> J[Judge scores] --> R
-```
 
 ## Verify
 
