@@ -1,6 +1,7 @@
 """Verify bounded repair views for every authored question."""
 
 import unittest
+from unittest.mock import patch
 
 from glassbox import repair, schema
 from glassbox.readers import build_reader, build_readers
@@ -36,6 +37,17 @@ class TestRepair(unittest.TestCase):
         r = build_reader("simulated:diligent")
         res = repair.repair(self.loans, r, self.q, skip_render=True)
         self.assertEqual([t.turn for t in res.turns], list(range(len(res.turns))))
+
+    def test_invalid_render_flag_fails_before_rendering(self):
+        reader = build_reader("simulated:literal")
+        for skip_render in ("false", 0, None):
+            with (
+                self.subTest(skip_render=skip_render),
+                patch("glassbox.repair.render.render") as render,
+                self.assertRaisesRegex(ValueError, "skip_render must be a boolean"),
+            ):
+                repair.repair(self.loans, reader, self.q, skip_render=skip_render)
+            render.assert_not_called()
 
 
 class TestQuestionRepair(unittest.TestCase):

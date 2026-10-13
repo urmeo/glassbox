@@ -70,7 +70,7 @@ def strict_json(raw):
     def constant(value):
         raise ValueError("nonfinite JSON value %s" % value)
 
-    return json.loads(raw, object_pairs_hook=pairs, parse_constant=constant)
+    return finite_json(json.loads(raw, object_pairs_hook=pairs, parse_constant=constant))
 
 
 def load_config(kind, source, error):

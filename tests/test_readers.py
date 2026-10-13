@@ -62,13 +62,11 @@ class TestCarelessSlip(unittest.TestCase):
         self.assertEqual(self._answer("table"), "a")
 
     def test_highlight_of_true_extreme_rescues_the_slip(self):
-        self.assertEqual(
-            self._answer("annotated"), "b"
-        )
+        self.assertEqual(self._answer("annotated"), "b")
 
 
 class TestH1Fixture(unittest.TestCase):
-    """The polished cards must transfer *less* understanding than plain data."""
+    """The fixture rules produce lower accuracy on cards than on raw values."""
 
     def setUp(self):
         self.scenarios = schema.load_all_scenarios()
@@ -88,7 +86,7 @@ class TestH1Fixture(unittest.TestCase):
             self.assertEqual(
                 _score(self.diligent, s, "baseline"),
                 len(s.questions),
-                "%s: diligent should ace the plain-text baseline" % sid,
+                "%s: diligent should answer every baseline question correctly" % sid,
             )
 
     def test_cards_hurt_a_capable_reader(self):

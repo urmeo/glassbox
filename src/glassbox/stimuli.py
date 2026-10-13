@@ -21,8 +21,15 @@ class Stimulus:
     render_metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.presentation, Presentation):
+            raise ValueError("stimulus requires a Presentation")
         if self.kind not in ("image", "spec") or not isinstance(self.text, str):
             raise ValueError("stimulus requires an image/spec kind and text")
+        if self.kind == "image":
+            if not isinstance(self.image_path, str) or not self.image_path.strip():
+                raise ValueError("image stimulus requires a nonempty image path")
+        elif self.image_path is not None or self.image_sha256 is not None:
+            raise ValueError("spec stimulus must not include image fields")
         if not isinstance(self.render_metadata, dict):
             raise ValueError("render_metadata must be a dict")
         object.__setattr__(self, "render_metadata", copy.deepcopy(self.render_metadata))

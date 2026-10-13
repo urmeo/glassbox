@@ -13,14 +13,10 @@ from glassbox.readers.openai_compat import extract_text as openai_text
 URL = "https://example.invalid/api"
 
 
-class Response(io.BytesIO):
-    pass
-
-
 class TestHTTP(unittest.TestCase):
     def test_valid_wire_payload_and_object_response(self):
         with patch(
-            "urllib.request.urlopen", return_value=Response(b'{"ok":true}')
+            "urllib.request.urlopen", return_value=io.BytesIO(b'{"ok":true}')
         ) as send:
             self.assertEqual(
                 post_json(URL, {"authorization": "Bearer key"}, {"prompt": "B"}),
@@ -31,11 +27,20 @@ class TestHTTP(unittest.TestCase):
             self.assertEqual(request.get_header("Content-type"), "application/json")
             self.assertEqual(send.call_args.kwargs["timeout"], 90)
 
+    def test_explicit_content_type_is_preserved_without_mutating_headers(self):
+        headers = {"Content-Type": "application/custom+json"}
+        with patch("urllib.request.urlopen", return_value=io.BytesIO(b"{}")) as send:
+            post_json(URL, headers, {})
+        request = send.call_args.args[0]
+        self.assertEqual(request.get_header("Content-type"), "application/custom+json")
+        self.assertEqual(headers, {"Content-Type": "application/custom+json"})
+
     def test_nonfinite_and_wrong_json_response_rejected(self):
         for response in (
             b"[]",
             b"null",
             b'{"x":NaN}',
+            b'{"x":1e999}',
             b'{"x":1,"x":2}',
             b"not json",
             b"\xff",
@@ -43,12 +48,31 @@ class TestHTTP(unittest.TestCase):
             with (
                 self.subTest(response=response),
                 patch(
-                    "urllib.request.urlopen", return_value=Response(response)
+                    "urllib.request.urlopen", return_value=io.BytesIO(response)
                 ) as send,
             ):
                 with self.assertRaises(ReaderAPIError):
                     post_json(URL, {}, {})
                 self.assertEqual(send.call_count, 1)
+
+    def test_response_nesting_error_is_wrapped_without_retrying(self):
+        response = b'{"nested":' * 2000 + b"null" + b"}" * 2000
+        with patch("urllib.request.urlopen", return_value=io.BytesIO(response)) as send:
+            with self.assertRaisesRegex(ReaderAPIError, "invalid JSON response"):
+                post_json(URL, {}, {})
+        send.assert_called_once()
+
+    def test_retryable_failure_can_recover(self):
+        for failure in (
+            urllib.error.URLError("temporary connection failure"),
+            urllib.error.HTTPError(URL, 429, "busy", {}, io.BytesIO(b"retry later")),
+        ):
+            with self.subTest(failure=type(failure).__name__), patch(
+                "urllib.request.urlopen",
+                side_effect=[failure, io.BytesIO(b'{"ok":true}')],
+            ) as send:
+                self.assertEqual(post_json(URL, {}, {}, retries=1), {"ok": True})
+                self.assertEqual(send.call_count, 2)
 
     def test_invalid_request_numbers_fail_before_http(self):
         for kwargs in (

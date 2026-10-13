@@ -36,6 +36,14 @@ class _ScalarFloat(float):
         return _TruthValue(super().__lt__(other))
 
 
+class _FixedWidthInt(int):
+    """Model the wrapping subtraction of a signed 64-bit integer scalar."""
+
+    def __sub__(self, other):
+        difference = int(self) - int(other)
+        return (difference + 2**63) % 2**64 - 2**63
+
+
 class TestSpearman(unittest.TestCase):
     def test_perfect_and_inverse(self):
         self.assertAlmostEqual(analysis.spearman([1, 2, 3, 4], [1, 2, 3, 4]), 1.0)
@@ -51,6 +59,14 @@ class TestSpearman(unittest.TestCase):
         xs = [_ScalarFloat(value) for value in [1, 2, 3]]
         ys = [_ScalarFloat(value) for value in [2, 1, 3]]
         self.assertAlmostEqual(analysis.kendall_tau(xs, ys), 1 / 3)
+
+    def test_pearson_centers_fixed_width_integers_without_overflow(self):
+        values = [-9_000_000_000_000_000_000, 0, 9_000_000_000_000_000_000]
+        scalars = [_FixedWidthInt(value) for value in values]
+        target = [-2.0, 0.0, 1.0]
+        self.assertAlmostEqual(
+            analysis.pearson(scalars, target), analysis.pearson(values, target)
+        )
 
     @unittest.skipUnless(HAVE_SCIPY, "scipy not installed (optional cross-check)")
     def test_matches_scipy(self):

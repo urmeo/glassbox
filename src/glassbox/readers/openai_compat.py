@@ -1,9 +1,9 @@
-"""Lazy openai_compat reader payloads and reply extraction."""
+"""Reader payloads and replies for OpenAI and OpenRouter Chat Completions."""
 
 from __future__ import annotations
 
-import os
 import hashlib
+import os
 from typing import Any, Dict
 
 from .._config import positive_integer, text as config_text
@@ -84,8 +84,8 @@ class OpenAICompatReader(Reader):
             if block["type"] == "text"
         )
         key = require_key(_KEY_ENV[self.family])
-        resp = post_json(_ENDPOINTS[self.family], self._headers(key), payload)
-        text = extract_text(resp)
+        response = post_json(_ENDPOINTS[self.family], self._headers(key), payload)
+        text = extract_text(response)
         return Answer(
             choice_id=parse_choice(text, question),
             method="api",

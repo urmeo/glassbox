@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, List, Optional
 
 from . import analysis, scoring
@@ -106,7 +106,7 @@ class AnchorResult:
 
     def breaks(self, top: int = 3) -> List[AnchorPoint]:
         """The items where model and human disagree most."""
-        return sorted(self.points, key=lambda p: -p.abs_gap)[:top]
+        return sorted(self.points, key=lambda point: point.abs_gap, reverse=True)[:top]
 
 
 def parse_anchor_set(raw: Dict) -> AnchorSet:
@@ -158,8 +158,11 @@ def run_anchor(
     ):
         raise AnchorError("readers must be a nonempty list of Reader objects")
     names = [reader.name for reader in readers]
-    if len(set(names)) != len(names):
-        raise AnchorError("duplicate readers")
+    if (
+        any(not isinstance(name, str) or not name.strip() for name in names)
+        or len(set(names)) != len(names)
+    ):
+        raise AnchorError("reader names must be nonempty and distinct")
     if out_dir is not None:
         protected = (
             (anchor._source_path,)
@@ -170,9 +173,19 @@ def run_anchor(
             out_dir, ("anchor.md", "anchor.json"), protected_paths=protected
         )
     scenarios_by_id = load_all_scenarios()
+    question_ids = {}
+    for item in anchor.items:
+        question_ids.setdefault(item.scenario, set()).add(item.question)
     needed = [
-        scenarios_by_id[sid]
-        for sid in dict.fromkeys(it.scenario for it in anchor.items)
+        replace(
+            scenarios_by_id[scenario_id],
+            questions=[
+                question
+                for question in scenarios_by_id[scenario_id].questions
+                if question.id in selected_ids
+            ],
+        )
+        for scenario_id, selected_ids in question_ids.items()
     ]
     results = scoring.read_all(
         needed,
@@ -184,27 +197,28 @@ def run_anchor(
     )
 
     by_item: Dict = {}
-    for qr in results:
-        by_item.setdefault((qr.scenario_id, qr.question_id), []).append(qr.correct)
+    for result in results:
+        by_item.setdefault((result.scenario_id, result.question_id), []).append(result.correct)
 
     points: List[AnchorPoint] = []
-    for it in anchor.items:
-        answers = by_item.get((it.scenario, it.question), [])
-        model_acc = sum(answers) / len(answers) if answers else 0.0
+    for item in anchor.items:
+        answers = by_item.get((item.scenario, item.question), [])
+        if not answers:
+            raise AnchorError("no reader answers for %s/%s" % (item.scenario, item.question))
         points.append(
             AnchorPoint(
-                scenario=it.scenario,
-                question=it.question,
-                human_accuracy=it.human_accuracy,
-                model_accuracy=model_acc,
+                scenario=item.scenario,
+                question=item.question,
+                human_accuracy=item.human_accuracy,
+                model_accuracy=sum(answers) / len(answers),
             )
         )
 
-    human = [p.human_accuracy for p in points]
-    model = [p.model_accuracy for p in points]
+    human = [point.human_accuracy for point in points]
+    model = [point.model_accuracy for point in points]
     return AnchorResult(
         anchor=anchor,
-        readers=[r.name for r in readers],
+        readers=names,
         points=points,
         spearman=analysis.spearman(model, human),
         pearson=analysis.pearson(model, human),

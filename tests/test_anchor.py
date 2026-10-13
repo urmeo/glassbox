@@ -4,6 +4,7 @@ import copy
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from glassbox import anchor
 from glassbox.cli import main
@@ -73,6 +74,27 @@ class TestRunAnchor(unittest.TestCase):
         self.assertEqual(
             (top.scenario, top.question), ("growth", "biggest_percent_gain")
         )
+
+    def test_subset_asks_only_declared_questions_and_replicates(self):
+        anchor_set = anchor.parse_anchor_set(VALID)
+        reader = build_readers(["simulated:diligent"])[0]
+        with patch.object(reader, "answer", wraps=reader.answer) as answer:
+            result = anchor.run_anchor(anchor_set, [reader], skip_render=True, replicates=2)
+        self.assertEqual(answer.call_count, 2)
+        self.assertEqual(
+            [call.args[1].id for call in answer.call_args_list],
+            ["cheapest_total", "cheapest_total"],
+        )
+        self.assertEqual(result.n_items, 1)
+        self.assertEqual(result.points[0].model_accuracy, 1.0)
+
+    def test_missing_reader_answers_do_not_become_zero_accuracy(self):
+        anchor_set = anchor.parse_anchor_set(VALID)
+        with (
+            patch("glassbox.anchor.scoring.read_all", return_value=[]),
+            self.assertRaisesRegex(anchor.AnchorError, "no reader answers"),
+        ):
+            anchor.run_anchor(anchor_set, build_readers(["simulated"]), skip_render=True)
 
     def test_cli_anchor_command(self):
         with tempfile.TemporaryDirectory() as tmp:

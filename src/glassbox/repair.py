@@ -34,15 +34,13 @@ class RepairResult:
     turns_to_understanding: Optional[int]
 
 
-def _next_transform(
-    scenario: Scenario, presentation: Presentation, question: Optional[Question] = None
-):
-    metric = question.target_field if question is not None else presentation.primary_metric
+def _next_transform(presentation: Presentation, question: Question):
+    metric = question.target_field
     if not all(presentation.shows_field(iid, metric) for iid in presentation.order):
         return "show the target %s" % (presentation.value_label or metric), frozenset(
             {"detail", "derived"}
         )
-    op = question.compute["op"] if question is not None else presentation.primary_extreme
+    op = question.compute["op"]
     if op.startswith("count_"):
         if "sorted" not in presentation.features:
             return "sort the target values for the count comparison", frozenset({"sorted"})
@@ -61,9 +59,12 @@ def repair(
 ) -> RepairResult:
     if type(max_turns) is not int or max_turns < 0:
         raise ValueError("max_turns must be a nonnegative integer")
+    if not isinstance(skip_render, bool):
+        raise ValueError("skip_render must be a boolean")
     presentation = interfaces.variant(scenario, START_VARIANT, target=question)
     turns: List[RepairTurn] = []
-    description, converged, ttu = "", False, None
+    description = ""
+    first_correct_turn = None
     for turn_index in range(max_turns + 1):
         stimulus = render.render(presentation, out_dir=out_dir, skip=skip_render)
         answer = reader.answer(scenario, question, stimulus)
@@ -79,13 +80,16 @@ def repair(
             )
         )
         if correct:
-            converged, ttu = True, turn_index
+            first_correct_turn = turn_index
             break
         if turn_index == max_turns:
             break
-        next_step = _next_transform(scenario, presentation, question)
+        next_step = _next_transform(presentation, question)
         if next_step is None:
             break
         description, added = next_step
         presentation = interfaces.with_features(scenario, presentation, added, target=question)
-    return RepairResult(scenario.id, reader.name, question.id, turns, converged, ttu)
+    return RepairResult(
+        scenario.id, reader.name, question.id, turns,
+        first_correct_turn is not None, first_correct_turn,
+    )

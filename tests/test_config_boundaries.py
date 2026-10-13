@@ -10,11 +10,12 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from glassbox import anchor, studies, training
+from glassbox import anchor, interfaces, schema, studies, training
 from glassbox.cli import build_parser, main
 from glassbox.readers import build_reader, expand_reader_specs
 from glassbox.readers.anthropic import AnthropicReader
 from glassbox.readers.openai_compat import OpenAICompatReader
+from glassbox.stimuli import Stimulus
 
 STUDY = {"id": "test", "description": "test", "readers": ["simulated"]}
 ANCHOR = {
@@ -209,6 +210,9 @@ class TestConfigLoading(unittest.TestCase):
                 '{"id":"a","id":"b"}',
                 '{"replicates":NaN}',
                 '{"replicates":Infinity}',
+                '{"replicates":1e309}',
+                '{"replicates":-1e309}',
+                '{"params":{"nested":[1e309]}}',
             ):
                 file.write_text(raw)
                 for loader, error in (
@@ -227,6 +231,23 @@ class TestConfigLoading(unittest.TestCase):
             path = Path(tmp) / "offline_demo.json"
             path.write_text(json.dumps(dict(STUDY, id="external")))
             self.assertEqual(studies.load_study(path).id, "external")
+
+
+class TestStimulusBoundaries(unittest.TestCase):
+    def test_image_and_spec_fields_agree_with_the_declared_kind(self):
+        presentation = interfaces.variant(schema.load_all_scenarios()["loans"], "table")
+        for fields in (
+            {"kind": "image"},
+            {"kind": "image", "image_path": ""},
+            {"kind": "image", "image_path": True},
+            {"kind": "spec", "image_path": "image.png"},
+            {"kind": "spec", "image_sha256": "0" * 64},
+            {"kind": "spec", "presentation": None},
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                arguments = {"presentation": presentation, "text": "text"}
+                arguments.update(fields)
+                Stimulus(**arguments)
 
 
 class TestPreflight(unittest.TestCase):

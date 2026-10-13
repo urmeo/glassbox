@@ -23,23 +23,27 @@ def parse_choice_letter(reply: str, allowed: Sequence[str]) -> Optional[str]:
     if not isinstance(reply, str) or not reply.strip():
         return None
     text = reply.strip()
-    letter = (
+    option_pattern = (
         r"[\s\"'([{]*([A-Za-z])\b[\"')\]}]*"
         r"(?=$|[ \t]*[.,;!?)(]|[ \t]*\n|[ \t]+(?:because|since|due\s+to|as\b|over\b))"
     )
-    final = re.findall(
-        r"\bfinal\s+(?:answer|choice|selection)\b\s*(?:is|:|=)?" + letter, text, re.I
+    final_answers = re.findall(
+        r"\bfinal\s+(?:answer|choice|selection)\b\s*(?:is|:|=)?" + option_pattern,
+        text,
+        re.I,
     )
     if re.search(r"\bfinal\s+(?:answer|choice|selection)\b", text, re.I):
-        return _unique(final, allowed) if final else None
-    patterns = [
-        r"\b(?:answer|choice|selection)\b\s*(?:is|:|=)?" + letter,
+        return _unique(final_answers, allowed) if final_answers else None
+    declaration_patterns = [
+        r"\b(?:answer|choice|selection)\b\s*(?:is|:|=)?" + option_pattern,
         r"(?:\bI\s+(?:would\s+)?|\bI'd\s+|(?:^|[.!?\n])\s*)"
-        r"(?:choose|pick|select|prefer)\s+(?:option\s+|offer\s+)?" + letter,
-        r"\bso\s+(?:option\s+)?" + letter + r"[\s.!)]*$",
+        r"(?:choose|pick|select|prefer)\s+(?:option\s+|offer\s+)?" + option_pattern,
+        r"\bso\s+(?:option\s+)?" + option_pattern + r"[\s.!)]*$",
     ]
     declared = [
-        item for pattern in patterns for item in re.findall(pattern, text, re.I)
+        item
+        for pattern in declaration_patterns
+        for item in re.findall(pattern, text, re.I)
     ]
     leading = re.match(r"^([A-Za-z])[.)]\s*", text)
     if leading:

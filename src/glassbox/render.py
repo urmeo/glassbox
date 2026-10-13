@@ -60,8 +60,12 @@ def _validate_png(data: bytes) -> Dict[str, int]:
     """Check complete noninterlaced PNG chunks, CRCs and bounded decoded rows."""
     if not data.startswith(_PNG_SIGNATURE) or len(data) > 64 * 1024 * 1024:
         raise RenderError("chrome output is not a bounded PNG")
-    offset, header, image_data, ended, saw_data = 8, None, bytearray(), False, False
-    palette, data_ended = None, False
+    offset = 8
+    header = None
+    image_data = bytearray()
+    ended = saw_data = False
+    palette = None
+    data_ended = False
     while offset < len(data):
         if offset + 12 > len(data):
             raise RenderError("PNG chunk is truncated")
@@ -157,7 +161,8 @@ def _cleanup_chrome(process: subprocess.Popen) -> None:
 def _capture(command, staged: Path, log_path: Path) -> Dict[str, Any]:
     """Confirm capture before accepting natural or controlled zero exit."""
     process = None
-    started, confirmed_at, confirmed_data = time.monotonic(), None, None
+    started = time.monotonic()
+    confirmed_at = confirmed_data = None
     try:
         with log_path.open("wb") as log:
             process = subprocess.Popen(

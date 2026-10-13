@@ -2,6 +2,8 @@
 
 import unittest
 import math
+from dataclasses import replace
+from unittest.mock import patch
 
 from glassbox import schema, scoring
 from glassbox.readers import build_reader, build_readers
@@ -68,6 +70,44 @@ class TestScoreBook(unittest.TestCase):
         self.assertGreaterEqual(len(self.book.scenarios), 3)
         self.assertGreaterEqual(len(self.book.interface_variants()), 3)
         self.assertGreaterEqual(len(self.book.readers), 3)
+
+    def test_iterator_input_preserves_cells_and_reader_identity(self):
+        book = scoring.ScoreBook(iter(self.book.results))
+        self.assertEqual(book.readers, self.book.readers)
+        self.assertEqual(book.scenarios, self.book.scenarios)
+        self.assertEqual(book.variants, self.book.variants)
+        self.assertEqual(book.families(), self.book.families())
+        self.assertEqual(book.all_deterministic(), self.book.all_deterministic())
+        for reader in book.readers:
+            for scenario in book.scenarios:
+                for variant in book.variants:
+                    self.assertEqual(book.accuracy(reader, scenario, variant),
+                                     self.book.accuracy(reader, scenario, variant))
+        conflicting = list(self.book.results)
+        conflicting[0] = replace(conflicting[0], reader_simulated=False)
+        with self.assertRaises(ValueError):
+            scoring.ScoreBook(iter(conflicting))
+
+    def test_invalid_selection_names_fail_before_rendering(self):
+        scenario = self.scenarios[0]
+        for name in ([], None, "", "   "):
+            reader = build_reader("simulated:literal")
+            reader.name = name
+            with self.subTest(name=name), patch("glassbox.render.render") as render:
+                with self.assertRaises(ValueError):
+                    scoring.read_all([scenario], [reader])
+                with self.assertRaises(ValueError):
+                    scoring.read_all([replace(scenario, id=name)], self.readers)
+                render.assert_not_called()
+        for scenarios, readers, variants in (
+            (None, self.readers, None),
+            (self.scenarios, None, None),
+            (self.scenarios, self.readers, 1),
+        ):
+            with patch("glassbox.render.render") as render:
+                with self.assertRaises(ValueError):
+                    scoring.read_all(scenarios, readers, variants=variants)
+                render.assert_not_called()
 
 
 class TestReplicates(unittest.TestCase):

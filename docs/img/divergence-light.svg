@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 298" width="780" height="298" role="img" aria-labelledby="chart-title chart-desc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif">
+<title id="chart-title">Preference score and accuracy lift</title>
+<desc id="chart-desc">Simulated judge scores on the left; simulated reader accuracy lift on the right. Cards score higher than the table on preference and lower on answer accuracy. These are deterministic fixture results.</desc>
+<text x="20.0" y="28.0" fill="#59636e" font-size="11" text-anchor="start" font-weight="700">PREFERENCE SCORE</text>
+<text x="20.0" y="46.0" fill="#59636e" font-size="11" text-anchor="start">fixed judge weights, 0 → 1</text>
+<text x="440.0" y="28.0" fill="#59636e" font-size="11" text-anchor="start" font-weight="700">ANSWER ACCURACY LIFT</text>
+<text x="440.0" y="46.0" fill="#59636e" font-size="11" text-anchor="start">percentage points vs plain text</text>
+<line x1="20.0" y1="62.0" x2="760.0" y2="62.0" stroke="#8b949e" stroke-width="1" opacity="0.35"/>
+<line x1="580.0" y1="74.0" x2="580.0" y2="230.0" stroke="#8b949e" stroke-width="1" opacity="0.55"/>
+<text x="580.0" y="68.0" fill="#59636e" font-size="10" text-anchor="middle">0</text>
+<text x="20.0" y="105.0" fill="#1f2328" font-size="14" text-anchor="start" font-weight="700">cards</text>
+<rect x="160.0" y="89.0" width="190.0" height="22.0" rx="3" fill="#d1d9e0"/>
+<rect x="160.0" y="89.0" width="117.8" height="22.0" rx="3" fill="#8957e5"/>
+<text x="362.0" y="105.0" fill="#1f2328" font-size="13" text-anchor="start" font-weight="600">0.62</text>
+<rect x="497.0" y="89.0" width="83.0" height="22.0" rx="3" fill="#d1495b"/>
+<text x="485.0" y="105.0" fill="#1f2328" font-size="13" text-anchor="end" font-weight="600">-59 pts</text>
+<text x="20.0" y="155.0" fill="#1f2328" font-size="14" text-anchor="start" font-weight="700">table</text>
+<rect x="160.0" y="139.0" width="190.0" height="22.0" rx="3" fill="#d1d9e0"/>
+<rect x="160.0" y="139.0" width="55.1" height="22.0" rx="3" fill="#8957e5"/>
+<text x="362.0" y="155.0" fill="#1f2328" font-size="13" text-anchor="start" font-weight="600">0.29</text>
+<rect x="580.0" y="139.0" width="41.5" height="22.0" rx="3" fill="#2ea043"/>
+<text x="633.5" y="155.0" fill="#1f2328" font-size="13" text-anchor="start" font-weight="600">+30 pts</text>
+<text x="20.0" y="205.0" fill="#1f2328" font-size="14" text-anchor="start" font-weight="700">annotated</text>
+<rect x="160.0" y="189.0" width="190.0" height="22.0" rx="3" fill="#d1d9e0"/>
+<rect x="160.0" y="189.0" width="144.4" height="22.0" rx="3" fill="#8957e5"/>
+<text x="362.0" y="205.0" fill="#1f2328" font-size="13" text-anchor="start" font-weight="600">0.76</text>
+<rect x="580.0" y="189.0" width="46.7" height="22.0" rx="3" fill="#2ea043"/>
+<text x="638.7" y="205.0" fill="#1f2328" font-size="13" text-anchor="start" font-weight="600">+33 pts</text>
+<line x1="20.0" y1="252.0" x2="760.0" y2="252.0" stroke="#8b949e" stroke-width="1" opacity="0.35"/>
+<text x="20.0" y="272.0" fill="#1f2328" font-size="12" text-anchor="start" font-weight="600">Cards have a higher preference score than the table, with 89 points lower answer accuracy.</text>
+<text x="20.0" y="289.0" fill="#59636e" font-size="11" text-anchor="start">Simulated readers and judge; no model or human study.</text>
+</svg>

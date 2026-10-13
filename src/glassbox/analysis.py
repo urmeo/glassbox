@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import statistics
 import math
-from numbers import Real
+import statistics
 from dataclasses import dataclass, field
+from itertools import combinations
+from numbers import Integral, Real
 from typing import Dict, List, Sequence, Tuple
 
-from .judge import Judge, JudgeMetadata, judge_all
-from .scoring import ScoreBook
 from . import interfaces
+from .judge import Judge, JudgeMetadata, judge_all
 from .schema import Scenario
-
-
+from .scoring import ScoreBook
 
 
 def _fractional_ranks(values: Sequence[float]) -> List[float]:
@@ -75,7 +74,9 @@ def _vectors(
                 ) from exc
             if not math.isfinite(number):
                 raise ValueError("correlation values must be finite real numbers")
-            vector.append(value)
+            # Fixed-width integer scalars can overflow during centering. Python
+            # integers preserve their values without losing large-integer precision.
+            vector.append(int(value) if isinstance(value, Integral) else value)
         result.append(vector)
     return result[0], result[1]
 
@@ -121,8 +122,6 @@ def kendall_tau(xs: Sequence[float], ys: Sequence[float]) -> float:
     if denom == 0:
         return float("nan")
     return (concordant - discordant) / denom
-
-
 
 
 @dataclass(frozen=True)
@@ -194,11 +193,10 @@ def _reader_agreement(book: ScoreBook, scenario: str, variants: List[str]) -> fl
         return float("nan")
     vecs = {r: [book.accuracy(r, scenario, v) for v in variants] for r in readers}
     corrs = []
-    for i in range(len(readers)):
-        for j in range(i + 1, len(readers)):
-            rho = spearman(vecs[readers[i]], vecs[readers[j]])
-            if rho == rho:
-                corrs.append(rho)
+    for first, second in combinations(readers, 2):
+        rho = spearman(vecs[first], vecs[second])
+        if not math.isnan(rho):
+            corrs.append(rho)
     return statistics.fmean(corrs) if corrs else float("nan")
 
 
@@ -236,8 +234,6 @@ def analyze_h1(
         reversals: List[Reversal] = []
         for i in range(len(variants)):
             for j in range(len(variants)):
-                if i == j:
-                    continue
                 if pref[i] > pref[j] and comp[i] < comp[j]:
                     reversals.append(
                         Reversal(
@@ -258,7 +254,7 @@ def analyze_h1(
             )
         )
 
-    valid_rhos = [s.spearman for s in scenario_reports if s.spearman == s.spearman]
+    valid_rhos = [s.spearman for s in scenario_reports if not math.isnan(s.spearman)]
     mean_rho = statistics.fmean(valid_rhos) if valid_rhos else float("nan")
     return H1Analysis(
         scenarios=scenario_reports,
@@ -270,8 +266,6 @@ def analyze_h1(
         mixed_readers=book.any_simulated() and book.any_real(),
         all_reader_deterministic=book.all_deterministic(),
     )
-
-
 
 
 @dataclass(frozen=True)
@@ -299,12 +293,6 @@ class CrossFamilyAnalysis:
         return len(self.families)
 
 
-def _reversal_present(
-    variants: List[str], pref: Dict[str, float], comp: Dict[str, float]
-) -> bool:
-    return bool(_reversal_pairs(variants, pref, comp))
-
-
 def _reversal_pairs(
     variants: List[str], pref: Dict[str, float], comp: Dict[str, float]
 ) -> List[Tuple[str, str]]:
@@ -312,7 +300,7 @@ def _reversal_pairs(
         (i, j)
         for i in variants
         for j in variants
-        if i != j and pref[i] > pref[j] and comp[i] < comp[j]
+        if pref[i] > pref[j] and comp[i] < comp[j]
     ]
 
 
@@ -339,24 +327,24 @@ def analyze_cross_family(
         for v in variants:
             lifts = [book.lift(r, s.id, v) for r in fam_readers for s in scenarios]
             comp[v] = statistics.fmean(lifts) if lifts else 0.0
+        reversals = _reversal_pairs(variants, preference, comp)
         families.append(
             FamilyComprehension(
                 family=fam,
                 readers=fam_readers,
                 comp_lift=comp,
-                reversal_holds=_reversal_present(variants, preference, comp),
-                reversals=_reversal_pairs(variants, preference, comp),
+                reversal_holds=bool(reversals),
+                reversals=reversals,
             )
         )
 
     corrs = []
-    for a in range(len(families)):
-        for b in range(a + 1, len(families)):
-            va = [families[a].comp_lift[v] for v in variants]
-            vb = [families[b].comp_lift[v] for v in variants]
-            rho = spearman(va, vb)
-            if rho == rho:
-                corrs.append(rho)
+    for first, second in combinations(families, 2):
+        first_lifts = [first.comp_lift[variant] for variant in variants]
+        second_lifts = [second.comp_lift[variant] for variant in variants]
+        rho = spearman(first_lifts, second_lifts)
+        if not math.isnan(rho):
+            corrs.append(rho)
     agreement = statistics.fmean(corrs) if corrs else float("nan")
 
     survives = len(families) >= 2 and all(f.reversal_holds for f in families)

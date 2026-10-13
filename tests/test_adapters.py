@@ -80,7 +80,8 @@ class TestOpenAICompatPayload(AdapterTestBase):
 
     def test_openrouter_headers_have_title_no_referer_by_default(self):
         reader = OpenAICompatReader("openrouter", "qwen/qwen3-vl-8b-instruct")
-        headers = reader._headers("sk-test")
+        with patch.dict(os.environ, {"GLASSBOX_APP_URL": ""}):
+            headers = reader._headers("sk-test")
         self.assertEqual(headers["authorization"], "Bearer sk-test")
         self.assertEqual(headers["X-Title"], "Glass Box")
         self.assertNotIn("HTTP-Referer", headers)

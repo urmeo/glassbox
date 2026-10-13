@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import ast
 import math
+import operator
 from typing import Any, List, Mapping, Union
 
 Number = Union[int, float]
 _BIN_OPS = {
-    ast.Add: lambda a, b: a + b,
-    ast.Sub: lambda a, b: a - b,
-    ast.Mult: lambda a, b: a * b,
-    ast.Div: lambda a, b: a / b,
-    ast.FloorDiv: lambda a, b: a // b,
-    ast.Mod: lambda a, b: a % b,
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
 }
-_UNARY_OPS = {ast.UAdd: lambda a: +a, ast.USub: lambda a: -a}
+_UNARY_OPS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
 _OPS = {"argmin", "argmax", "rank", "count_ge", "count_le", "count_gt", "count_lt"}
 
 
@@ -149,14 +150,13 @@ def compute_answer_value(data: Mapping[str, Any], spec: Mapping[str, Any]) -> An
             range(len(items)), key=lambda i: values[i], reverse=spec.get("order", "asc") == "desc"
         )
         return items[indices[spec["k"] - 1]]["id"]
-    threshold = spec["threshold"]
     compare = {
-        "count_ge": lambda value: value >= threshold,
-        "count_le": lambda value: value <= threshold,
-        "count_gt": lambda value: value > threshold,
-        "count_lt": lambda value: value < threshold,
+        "count_ge": operator.ge,
+        "count_le": operator.le,
+        "count_gt": operator.gt,
+        "count_lt": operator.lt,
     }[op]
-    return sum(1 for value in values if compare(value))
+    return sum(compare(value, spec["threshold"]) for value in values)
 
 
 def recompute(data: Mapping[str, Any], question: Mapping[str, Any]) -> str:
@@ -164,11 +164,16 @@ def recompute(data: Mapping[str, Any], question: Mapping[str, Any]) -> str:
         raise ValueError("question requires a compute spec and choices list")
     value = compute_answer_value(data, question.get("compute"))
     matches = []
+    choice_ids = set()
     for choice in question["choices"]:
-        if not isinstance(choice, Mapping) or not isinstance(choice.get("id"), str):
-            raise ValueError("question choices require string ids")
+        if not isinstance(choice, Mapping):
+            raise ValueError("question choices must be mappings")
+        choice_id = choice.get("id")
+        if not isinstance(choice_id, str) or not choice_id.strip() or choice_id in choice_ids:
+            raise ValueError("question choices require unique nonempty string ids")
+        choice_ids.add(choice_id)
         if choice.get("value") == value:
-            matches.append(choice["id"])
+            matches.append(choice_id)
     if len(matches) != 1:
         raise ValueError(
             "computed answer %r for question %r must match exactly one choice"

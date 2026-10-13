@@ -28,10 +28,9 @@ from .schema import (
 from .scoring import ScoreBook, QuestionResult
 
 SIMULATED_CAVEAT = (
-    "> **Simulated readers only.** These readers are deterministic fixtures whose "
-    "behavior is designed, not observed. This report shows that the harness detects a "
-    "divergence when one is present by construction; it is **not** evidence about real "
-    "readers or real interfaces."
+    "> **Simulated readers only.** These readers are fixtures whose "
+    "answers follow configured rules. These scores test the pipeline; they do not "
+    "measure model or human comprehension."
 )
 
 
@@ -120,10 +119,8 @@ def run_metadata(
     return meta
 
 
-def _pct(x: float) -> str:
-    return "%+.0f pts" % (x * 100)
-
-
+def _pct(value: float) -> str:
+    return "%+.0f pts" % (value * 100) if math.isfinite(value) else "undefined"
 
 
 def build_results(
@@ -206,8 +203,6 @@ def build_results(
             "judge_target": cross.judge_target,
         },
     }
-
-
 
 
 def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
@@ -372,8 +367,6 @@ def write_run(
     return {"results": results_path, "report": report_path}
 
 
-
-
 def render_transcript_md(
     result: RepairResult, scenario: Scenario, question: Question
 ) -> str:
@@ -395,7 +388,7 @@ def render_transcript_md(
         chosen_text = next(
             (c.text for c in question.choices if c.id == t.chosen), "unknown"
         )
-        mark = "✓ understood" if t.correct else "✗ wrong"
+        mark = "correct" if t.correct else "incorrect"
         header = "**Turn %d**: interface `%s` (%s)" % (
             t.turn,
             t.variant,
@@ -409,11 +402,11 @@ def render_transcript_md(
         lines.append("")
     if result.converged:
         lines.append(
-            "**Result:** understood after **%d** repair turn(s)."
+            "**Result:** correct answer after **%d** repair turn(s)."
             % result.turns_to_understanding
         )
     else:
-        lines.append("**Result:** did not converge within the turn budget.")
+        lines.append("**Result:** no correct answer within the turn budget.")
     return "\n".join(lines)
 
 
@@ -443,11 +436,10 @@ def write_repair(
     return {"transcript": transcript_path, "repair": json_path}
 
 
-
 ANCHOR_FIXTURE_CAVEAT = (
-    "> **Fixture anchor set.** The human numbers here are synthetic, invented only to "
-    "verify the harness. This is a fixture check. Use verified per-item human accuracy for a human comparison: "
-    "declare its source and conditions."
+    "> **Fixture anchor set.** The supplied human accuracy values are synthetic test "
+    "data. A human comparison needs measured accuracy on matching questions and "
+    "presentation conditions, with a documented source."
 )
 
 
@@ -479,11 +471,11 @@ def render_anchor_md(result: AnchorResult) -> str:
         )
     )
     lines.append("")
-    lines.append("| item | human | model | gap |")
+    lines.append("| item | human | model | gap (percentage points) |")
     lines.append("|---|---:|---:|---:|")
     for p in result.points:
         lines.append(
-            "| %s/%s | %.0f%% | %.0f%% | %.0f%% |"
+            "| %s/%s | %.0f%% | %.0f%% | %.0f |"
             % (
                 p.scenario,
                 p.question,
@@ -493,7 +485,8 @@ def render_anchor_md(result: AnchorResult) -> str:
             )
         )
     lines.append("")
-    lines.append("**Where the proxy breaks (largest gaps):**")
+    lines.append("**Largest accuracy gaps:**")
+    lines.append("")
     for p in result.breaks():
         lines.append(
             "- `%s/%s`: human %.0f%% vs model %.0f%% (gap %.0f pts)"
@@ -537,7 +530,6 @@ def write_anchor(
     return {"report": report_path, "anchor": json_path}
 
 
-
 OPTIMIZE_CAVEAT = (
     "> **In-sample feature search.** Candidate selection and reported scores use the "
     "same scenarios, questions and readers. A fresh plain-text baseline is sampled "
@@ -576,13 +568,13 @@ def render_optimize_md(
     )
     lines.append("")
     lines.append(
-        "**Generator selected:** `%s`"
+        "**Selected features:** `%s`"
         % (", ".join(sorted(ev.generator_features)) or "(none)")
     )
     lines.append("")
     lines.append("| interface | comprehension lift |")
     lines.append("|---|---:|")
-    lines.append("| generator (reward-optimized) | %s |" % _pct(ev.generator_reward))
+    lines.append("| selected interface | %s |" % _pct(ev.generator_reward))
     lines.append("| fixed polished cards | %s |" % _pct(ev.cards_reward))
     lines.append("| plain-text baseline | +0 pts |")
     lines.append("")
@@ -596,13 +588,15 @@ def render_optimize_md(
     )
     lines.append("")
     if training is not None:
-        state = "ready to run" if not training["errors"] else "BLOCKED"
+        state = "config valid" if not training["errors"] else "config invalid"
         lines.append(
-            "**Training plan** `%s`: %s. Pre-run validation: %s."
+            "**Training plan** `%s`: %s. Configuration check: %s. No trainer is included."
             % (training["id"], training["status"], state)
         )
-        for e in training["errors"]:
-            lines.append("- ✗ %s" % e)
+        if training["errors"]:
+            lines.append("")
+        for error in training["errors"]:
+            lines.append("- %s" % error)
         lines.append("")
     return "\n".join(lines)
 

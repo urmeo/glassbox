@@ -16,6 +16,24 @@ class TestRender(unittest.TestCase):
         self.assertEqual(st.kind, "spec")
         self.assertIsNone(st.image_path)
 
+    def test_explicit_field_display_applies_to_html_and_text(self):
+        from copy import deepcopy
+
+        data = deepcopy(self.loans.data)
+        data["presentation"]["field_display"] = {
+            "fees": {"unit": "$", "value_label": "Setup fee"}
+        }
+        scenario = schema.Scenario(
+            self.loans.id, self.loans.title, self.loans.domain,
+            self.loans.description, data, self.loans.questions,
+        )
+        for name in ("table", "annotated"):
+            with self.subTest(variant=name):
+                presentation = interfaces.variant(scenario, name)
+                for view in (presentation.to_html(), presentation.to_text()):
+                    self.assertIn("Setup fee", view)
+                    self.assertIn("$300", view)
+
     def test_screenshot_wraps_exec_failure_as_render_error(self):
         p = interfaces.variant(self.loans, "table")
         saved = os.environ.get("GLASSBOX_CHROME")

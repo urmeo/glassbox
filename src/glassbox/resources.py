@@ -44,7 +44,7 @@ def resource_names(kind: str) -> Tuple[str, ...]:
                 if file.is_file() and file.name.endswith(suffix)
             )
         )
-    except (OSError, FileNotFoundError) as exc:
+    except OSError as exc:
         raise ResourceError("missing packaged resource directory %r" % kind) from exc
 
 

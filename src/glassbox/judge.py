@@ -7,9 +7,11 @@ import json
 import re
 import statistics
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from itertools import combinations
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import interfaces
+from ._config import positive_integer
 from .answer_parsing import parse_choice_letter
 from .interfaces import INTERFACE_VARIANTS, Presentation
 from .schema import Scenario, scenario_sha256
@@ -81,7 +83,7 @@ class SimulatedJudge(Judge):
     protocol = "fixed_polish_weights.v1"
 
     def preference(self, scenario: Scenario, presentation: Presentation) -> float:
-        f = presentation.features
+        features = presentation.features
         score = 0.30
         for feature, weight in (
             ("polished", 0.35),
@@ -90,11 +92,11 @@ class SimulatedJudge(Judge):
             ("sorted", 0.04),
             ("as_text", -0.15),
         ):
-            if feature in f:
+            if feature in features:
                 score += weight
         if presentation.order:
             avg_fields = statistics.fmean(
-                len(presentation.shown[i]) for i in presentation.order
+                len(presentation.shown[item_id]) for item_id in presentation.order
             )
             score -= 0.015 * avg_fields
         return max(0.0, min(1.0, score))
@@ -196,12 +198,10 @@ class SimulatedPairwiseJudge(PairwiseJudge):
         self._rating = SimulatedJudge()
 
     def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
-        sa, sb = (
-            self._rating.preference(scenario, a),
-            self._rating.preference(scenario, b),
-        )
-        if sa != sb:
-            return "A" if sa > sb else "B"
+        first_score = self._rating.preference(scenario, a)
+        second_score = self._rating.preference(scenario, b)
+        if first_score != second_score:
+            return "A" if first_score > second_score else "B"
         return "A" if a.variant <= b.variant else "B"
 
 
@@ -216,13 +216,9 @@ class ApiPairwiseJudge(PairwiseJudge):
             raise ValueError("pairwise reader spec must be a string")
         spec = validate_judge_spec("pairwise:" + reader_spec)
         self.family, _, self.model = spec[len("pairwise:") :].partition(":")
-        if (
-            isinstance(max_tokens, bool)
-            or not isinstance(max_tokens, int)
-            or max_tokens < 1
-        ):
-            raise ValueError("max_tokens must be a positive integer")
-        self.name, self.max_tokens = spec, max_tokens
+        positive_integer(max_tokens, "max_tokens")
+        self.name = spec
+        self.max_tokens = max_tokens
 
     @property
     def prompt_sha256(self) -> str:
@@ -238,7 +234,7 @@ class ApiPairwiseJudge(PairwiseJudge):
             r"\{(a|b)\}", lambda m: fields[m.group(1)], load_prompt("judge_pairwise")
         )
 
-    def build_payload(self, a: Presentation, b: Presentation) -> Dict:
+    def build_payload(self, a: Presentation, b: Presentation) -> Dict[str, Any]:
         return {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -257,7 +253,7 @@ class ApiPairwiseJudge(PairwiseJudge):
             from .readers.anthropic import ENDPOINT, API_VERSION, extract_text
 
             key = require_key("ANTHROPIC_API_KEY")
-            resp = post_json(
+            response = post_json(
                 ENDPOINT,
                 {"x-api-key": key, "anthropic-version": API_VERSION},
                 self.build_payload(a, b),
@@ -266,12 +262,12 @@ class ApiPairwiseJudge(PairwiseJudge):
             from .readers.openai_compat import _ENDPOINTS, _KEY_ENV, extract_text
 
             key = require_key(_KEY_ENV[self.family])
-            resp = post_json(
+            response = post_json(
                 _ENDPOINTS[self.family],
                 {"authorization": "Bearer " + key},
                 self.build_payload(a, b),
             )
-        return parse_ab(extract_text(resp)) or "tie"
+        return parse_ab(extract_text(response)) or "tie"
 
 
 class PairwiseRatingJudge(Judge):
@@ -325,23 +321,33 @@ class PairwiseRatingJudge(Judge):
         ).hexdigest()
         if key in self._cache:
             return self._cache[key]
-        pres = {v: interfaces.variant(scenario, v) for v in self._variants}
-        wins = {v: 0.0 for v in self._variants}
-        for i, va in enumerate(self._variants):
-            for vb in self._variants[i + 1 :]:
-                winner = self._pw.compare(scenario, pres[va], pres[vb])
-                if winner not in ("A", "B", "tie"):
-                    raise ValueError("pairwise result must be A, B or tie")
-                self.comparison_count += 1
-                if winner == "A":
-                    wins[va] += 1.0
-                elif winner == "B":
-                    wins[vb] += 1.0
-                else:
-                    wins[va] += 0.5
-                    wins[vb] += 0.5
-        k = len(self._variants)
-        rates = {v: (wins[v] / (k - 1) if k > 1 else 0.0) for v in self._variants}
+        presentations = {
+            variant: interfaces.variant(scenario, variant) for variant in self._variants
+        }
+        wins = {variant: 0.0 for variant in self._variants}
+        for first, second in combinations(self._variants, 2):
+            winner = self._pw.compare(
+                scenario, presentations[first], presentations[second]
+            )
+            if winner not in ("A", "B", "tie"):
+                raise ValueError("pairwise result must be A, B or tie")
+            self.comparison_count += 1
+            if winner == "A":
+                wins[first] += 1.0
+            elif winner == "B":
+                wins[second] += 1.0
+            else:
+                wins[first] += 0.5
+                wins[second] += 0.5
+        comparisons_per_variant = len(self._variants) - 1
+        rates = {
+            variant: (
+                wins[variant] / comparisons_per_variant
+                if comparisons_per_variant
+                else 0.0
+            )
+            for variant in self._variants
+        }
         self._cache[key] = rates
         return rates
 

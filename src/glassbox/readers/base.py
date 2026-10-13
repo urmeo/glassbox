@@ -40,8 +40,6 @@ class Reader:
         raise NotImplementedError
 
 
-
-
 def apply_op(
     compute_spec: Mapping[str, Any], values: Mapping[str, Any], order: List[str]
 ) -> Any:
@@ -49,38 +47,36 @@ def apply_op(
     op = compute_spec["op"]
     if op in ("argmin", "argmax"):
         chooser = min if op == "argmin" else max
-        return chooser(order, key=lambda i: values[i])
+        return chooser(order, key=lambda item_id: values[item_id])
     if op == "rank":
         k = int(compute_spec["k"])
         reverse = compute_spec.get("order", "asc") == "desc"
-        ordered = sorted(order, key=lambda i: values[i], reverse=reverse)
+        ordered = sorted(order, key=lambda item_id: values[item_id], reverse=reverse)
         k = max(1, min(k, len(ordered)))
         return ordered[k - 1]
     if op.startswith("count_"):
         threshold = compute_spec["threshold"]
-        cmp = {
+        matches = {
             "count_ge": lambda v: v >= threshold,
             "count_le": lambda v: v <= threshold,
             "count_gt": lambda v: v > threshold,
             "count_lt": lambda v: v < threshold,
         }[op]
-        return sum(1 for i in order if cmp(values[i]))
+        return sum(1 for item_id in order if matches(values[item_id]))
     raise ValueError("unknown op %r" % op)
 
 
 def value_to_choice(question: Question, value: Any) -> Optional[str]:
     """Map a computed answer value to the choice id whose ``value`` equals it."""
-    for c in question.choices:
-        if c.value == value:
-            return c.id
+    for choice in question.choices:
+        if choice.value == value:
+            return choice.id
     return None
 
 
 def guess_choice(question: Question) -> str:
     """The deterministic fallback when a reader cannot answer: the first choice."""
     return question.choices[0].id
-
-
 
 
 def _letter(index: int) -> str:
@@ -93,7 +89,8 @@ def build_mcq_prompt(question: Question, stimulus: Stimulus, image: bool) -> str
         raise ValueError("MCQ prompts require between 2 and 26 choices")
     template = load_prompt("reader_mcq")
     options = "\n".join(
-        "%s. %s" % (_letter(i), c.text) for i, c in enumerate(question.choices)
+        f"{_letter(index)}. {choice.text}"
+        for index, choice in enumerate(question.choices)
     )
     context_block = (
         ""
@@ -108,15 +105,18 @@ def build_mcq_prompt(question: Question, stimulus: Stimulus, image: bool) -> str
 
 def parse_choice(reply: str, question: Question) -> Optional[str]:
     """Map a declared letter or exact authored choice text to its ID."""
-    letters = [_letter(index) for index in range(len(question.choices))]
-    chosen = parse_choice_letter(reply, letters)
+    choices_by_letter = {
+        _letter(index): choice.id for index, choice in enumerate(question.choices)
+    }
+    chosen = parse_choice_letter(reply, tuple(choices_by_letter))
     if chosen is not None:
-        return question.choices[letters.index(chosen)].id
+        return choices_by_letter[chosen]
     if not isinstance(reply, str):
         return None
-    hits = [
+    reply_text = reply.strip().casefold()
+    matching_ids = [
         choice.id
         for choice in question.choices
-        if choice.text.casefold() == reply.strip().casefold()
+        if choice.text.casefold() == reply_text
     ]
-    return hits[0] if len(hits) == 1 else None
+    return matching_ids[0] if len(matching_ids) == 1 else None

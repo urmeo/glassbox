@@ -64,8 +64,6 @@ class Presentation:
         return render_text(self)
 
 
-
-
 def _num(v: Any) -> str:
     if isinstance(v, float) and v.is_integer():
         v = int(v)
@@ -86,8 +84,6 @@ def format_value(v: Any, unit: str) -> str:
     return _num(v)
 
 
-
-
 def build(
     scenario: Scenario,
     features: FrozenSet[str],
@@ -101,7 +97,9 @@ def build(
         raise ValueError("target must be a question from this scenario")
     if not isinstance(variant, str) or not variant.strip():
         raise ValueError("presentation variant must be nonempty text")
-    if not isinstance(features, (set, frozenset)) or any(not isinstance(f, str) for f in features):
+    if not isinstance(features, (set, frozenset)) or any(
+        not isinstance(name, str) for name in features
+    ):
         raise ValueError("presentation features must be a set of strings")
     pres = scenario.presentation
     metric = target.target_field if target is not None else pres.primary_metric
@@ -225,7 +223,6 @@ def with_features(
     return build(scenario, combined, variant=name, target=target)
 
 
-
 _CSS = """
 :root { color-scheme: light dark; }
 * { box-sizing: border-box; }
@@ -272,7 +269,15 @@ def _doc(title: str, body: str) -> str:
 
 
 def _field_label(name: str) -> str:
-    return name.replace("_", " ")
+    labels = {
+        "apr_pct": "APR (%)",
+        "stated_total": "advertised total",
+        "term_months": "term (months)",
+        "included_gb": "included data (GB)",
+        "usage_gb": "data usage (GB)",
+        "overage_per_gb": "overage per GB",
+    }
+    return labels.get(name, name.replace("_", " "))
 
 
 def render_html(p: Presentation) -> str:
@@ -292,16 +297,13 @@ def render_html(p: Presentation) -> str:
             + "</pre>",
         )
 
-    if "polished" in p.features and "detail" not in p.features and "all_raw" not in p.features:
+    if p.polished:
         return _doc(p.title, head + desc + _render_cards(p))
-
-    if "polished" in p.features:
-        return _doc(p.title, head + desc + _render_cards(p, show_metric=True))
 
     return _doc(p.title, head + desc + _render_table(p))
 
 
-def _render_cards(p: Presentation, show_metric: bool = False) -> str:
+def _render_cards(p: Presentation) -> str:
     cards = []
     for iid in p.order:
         row = p.shown[iid]
@@ -325,14 +327,14 @@ def _render_cards(p: Presentation, show_metric: bool = False) -> str:
                 '<div class="headline-label">' + html.escape(label) + "</div>"
             )
         lis = []
-        for fname, val in row.items():
-            if fname == p.emphasized_field:
+        for name, value in row.items():
+            if name == p.emphasized_field:
                 continue
             lis.append(
                 "<li><span>"
-                + html.escape(_field_label(fname))
+                + html.escape(p.field_labels.get(name, _field_label(name)))
                 + "</span><span>"
-                + html.escape(_num(val))
+                + html.escape(format_value(value, p.field_units.get(name, "")))
                 + "</span></li>"
             )
         cards.append(
@@ -358,7 +360,8 @@ def _render_table(p: Presentation) -> str:
                 raw_cols.append(f)
     metric_shown = any(p.primary_metric in p.shown[iid] for iid in p.order)
     header = "<tr><th>option</th>" + "".join(
-        "<th>" + html.escape(_field_label(c)) + "</th>" for c in raw_cols
+        "<th>" + html.escape(p.field_labels.get(name, _field_label(name))) + "</th>"
+        for name in raw_cols
     )
     if metric_shown:
         header += "<th>" + html.escape(p.value_label or _field_label(p.primary_metric)) + "</th>"
@@ -369,8 +372,12 @@ def _render_table(p: Presentation) -> str:
         row = p.shown[iid]
         marked = ' class="mark"' if iid == p.highlight_item else ""
         cells = "<td>" + html.escape(p.labels.get(iid, iid)) + "</td>"
-        for c in raw_cols:
-            cells += '<td class="num">' + (html.escape(_num(row[c])) if c in row else "") + "</td>"
+        for name in raw_cols:
+            value = (
+                html.escape(format_value(row[name], p.field_units.get(name, "")))
+                if name in row else ""
+            )
+            cells += '<td class="num">' + value + "</td>"
         if metric_shown:
             mval = row.get(p.primary_metric)
             cells += (
@@ -398,16 +405,17 @@ def render_text(p: Presentation, include_header: bool = True) -> str:
     for iid in p.order:
         row = p.shown[iid]
         parts = []
-        for fname, val in row.items():
-            if fname == p.primary_metric:
+        for name, value in row.items():
+            label = p.field_labels.get(name, _field_label(name))
+            if name == p.primary_metric:
                 parts.append(
                     "%s = %s"
-                    % (p.value_label or _field_label(fname), format_value(val, p.unit_for(fname)))
+                    % (p.value_label or label, format_value(value, p.unit_for(name)))
                 )
-            elif fname == p.emphasized_field:
-                parts.append("%s: %s" % (_field_label(fname), format_value(val, p.unit_for(fname))))
+            elif name == p.emphasized_field:
+                parts.append("%s: %s" % (label, format_value(value, p.unit_for(name))))
             else:
-                parts.append("%s %s" % (_field_label(fname), _num(val)))
+                parts.append("%s %s" % (label, format_value(value, p.field_units.get(name, ""))))
         marker = ("  <- highlighted as " + p.highlight_label) if iid == p.highlight_item else ""
         lines.append("- %s: %s%s" % (p.labels.get(iid, iid), ", ".join(parts), marker))
     return "\n".join(lines)

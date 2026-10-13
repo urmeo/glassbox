@@ -16,32 +16,34 @@ def validate_scenario(scenario: Scenario) -> List[str]:
     except SchemaError as exc:
         return [str(exc)]
 
-    for name, expr in scenario.derived.items():
+    for name, expression in scenario.derived.items():
         for item in scenario.items:
             try:
-                compute.evaluate_expr(expr, item)
+                compute.evaluate_expr(expression, item)
             except compute.ExpressionError as exc:
                 errors.append(
                     "%s: derived %r fails on item %r: %s" % (scenario.id, name, item["id"], exc)
                 )
 
-    for q in scenario.questions:
+    for question in scenario.questions:
         try:
             recomputed = compute.recompute(
                 scenario.data,
                 {
-                    "id": q.id,
-                    "compute": q.compute,
-                    "choices": [{"id": c.id, "value": c.value} for c in q.choices],
+                    "id": question.id,
+                    "compute": question.compute,
+                    "choices": [
+                        {"id": choice.id, "value": choice.value} for choice in question.choices
+                    ],
                 },
             )
-        except (compute.ExpressionError, ValueError, KeyError) as exc:
-            errors.append("%s/%s: cannot recompute answer: %s" % (scenario.id, q.id, exc))
+        except (ValueError, KeyError) as exc:
+            errors.append("%s/%s: cannot recompute answer: %s" % (scenario.id, question.id, exc))
             continue
-        if recomputed != q.answer:
+        if recomputed != question.answer:
             errors.append(
                 "%s/%s: authored answer %r but source data recomputes to %r"
-                % (scenario.id, q.id, q.answer, recomputed)
+                % (scenario.id, question.id, question.answer, recomputed)
             )
     return errors
 
@@ -57,13 +59,13 @@ def validate_all(directory: Optional[str] = None) -> Tuple[bool, List[str]]:
 
     report: List[str] = []
     all_errors: List[str] = []
-    for sid, scenario in scenarios.items():
+    for scenario_id, scenario in scenarios.items():
         errors = validate_scenario(scenario)
         all_errors.extend(errors)
         status = "ok" if not errors else "FAIL"
         report.append(
             "%-16s %s  (%d question%s)"
-            % (sid, status, len(scenario.questions), "" if len(scenario.questions) == 1 else "s")
+            % (scenario_id, status, len(scenario.questions), "" if len(scenario.questions) == 1 else "s")
         )
-        report.extend("    - " + e for e in errors)
+        report.extend("    - " + error for error in errors)
     return (not all_errors), report

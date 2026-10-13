@@ -1,6 +1,7 @@
 """In-sample feature-search fixtures."""
 
 import unittest
+from unittest.mock import patch
 
 from glassbox import reward, schema
 from glassbox.readers import build_readers
@@ -68,6 +69,31 @@ class TestReward(unittest.TestCase):
             ev, ["simulated:literal", "simulated:diligent"], None
         )
         self.assertIn("Simulated readers only", md)
+
+    def test_duplicate_inputs_fail_before_reading(self):
+        scenario = self.scenarios[0]
+        reader = self.readers[0]
+        for scenarios, readers in (
+            ([scenario, scenario], [reader]),
+            ([scenario], [reader, reader]),
+            (True, [reader]),
+            ([scenario], True),
+        ):
+            with (
+                self.subTest(scenarios=scenarios, readers=readers),
+                patch("glassbox.reward.render.render") as render,
+                self.assertRaises(ValueError),
+            ):
+                reward.search_best_interface(scenarios, readers)
+            render.assert_not_called()
+
+    def test_nonsequence_feature_pool_fails_before_reading(self):
+        with (
+            patch("glassbox.reward.render.render") as render,
+            self.assertRaisesRegex(ValueError, "feature pool must be a sequence"),
+        ):
+            reward.search_best_interface(self.scenarios, self.readers, pool=True)
+        render.assert_not_called()
 
 
 if __name__ == "__main__":

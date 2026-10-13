@@ -1,0 +1,50 @@
+{
+  "aggregate": {
+    "annotated": {
+      "accuracy": 0.9629629629629629,
+      "lift": 0.3333333333333333,
+      "preference": 0.7599999999999999
+    },
+    "cards": {
+      "accuracy": 0.037037037037037035,
+      "lift": -0.5925925925925926,
+      "preference": 0.6199999999999999
+    },
+    "table": {
+      "accuracy": 0.9259259259259259,
+      "lift": 0.2962962962962963,
+      "preference": 0.29
+    }
+  },
+  "mean_spearman": 0.16666666666666663,
+  "per_reader_accuracy": {
+    "simulated:careless": {
+      "annotated": 1.0,
+      "cards": 0.1111111111111111,
+      "table": 0.8888888888888888
+    },
+    "simulated:diligent": {
+      "annotated": 1.0,
+      "cards": 0.0,
+      "table": 1.0
+    },
+    "simulated:literal": {
+      "annotated": 0.8888888888888888,
+      "cards": 0.0,
+      "table": 0.8888888888888888
+    }
+  },
+  "questions_per_reader": 9,
+  "readers": [
+    "simulated:literal",
+    "simulated:diligent",
+    "simulated:careless"
+  ],
+  "scenarios": [
+    "growth",
+    "loans",
+    "plans"
+  ],
+  "simulated": true,
+  "study": "offline_demo"
+}

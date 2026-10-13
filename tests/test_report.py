@@ -78,6 +78,16 @@ class TestReport(unittest.TestCase):
         self.assertEqual(json.loads(stream.getvalue()), {"spread": None})
         self.assertNotIn("NaN", stream.getvalue())
 
+    def test_undefined_lift_is_labeled_in_markdown(self):
+        from dataclasses import replace
+
+        scenario = self.h1.scenarios[0]
+        row = replace(scenario.rows[0], comp_lift=float("nan"))
+        summary = replace(self.h1, scenarios=[replace(scenario, rows=[row])])
+        text = report.render_report_md(self.book, summary)
+        self.assertIn("undefined", text)
+        self.assertNotIn("nan pts", text)
+
 
 if __name__ == "__main__":
     unittest.main()

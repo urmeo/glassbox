@@ -49,17 +49,16 @@ def build_reader(spec: str) -> Reader:
 def expand_reader_specs(specs: List[str]) -> List[str]:
     """Expand simulated shorthand; repetition is controlled through replicates."""
     specs = strings(specs, "readers")
-    out = []
+    expanded = []
     for spec in specs:
         spec = validate_reader_spec(spec, shorthand=True)
-        out.extend(
-            ["simulated:" + persona for persona in SIMULATED_PERSONAS]
-            if spec == "simulated"
-            else [spec]
-        )
-    if len(set(out)) != len(out):
+        if spec == "simulated":
+            expanded.extend("simulated:" + persona for persona in SIMULATED_PERSONAS)
+        else:
+            expanded.append(spec)
+    if len(set(expanded)) != len(expanded):
         raise ValueError("readers contain duplicate expanded specs")
-    return out
+    return expanded
 
 
 def build_readers(specs: List[str]) -> List[Reader]:

@@ -102,6 +102,16 @@ class TestComputeOps(unittest.TestCase):
 
 
 class TestRecompute(unittest.TestCase):
+    def test_ambiguous_or_empty_choice_ids_are_rejected(self):
+        data = {"items": [{"id": "A", "x": 2}, {"id": "B", "x": 1}]}
+        for choices in (
+            [{"id": "a", "value": "A"}, {"id": "a", "value": "B"}],
+            [{"id": "", "value": "B"}],
+            [{"id": " ", "value": "B"}],
+        ):
+            with self.subTest(choices=choices), self.assertRaisesRegex(ValueError, "unique nonempty"):
+                compute.recompute(data, {"compute": {"op": "argmin", "field": "x"}, "choices": choices})
+
     def test_maps_value_to_choice_id(self):
         data = {"items": [{"id": "A", "x": 2}, {"id": "B", "x": 1}]}
         question = {

@@ -35,17 +35,19 @@ class SimulatedReader(Reader):
     def answer(
         self, scenario: Scenario, question: Question, stimulus: Stimulus
     ) -> Answer:
-        p = stimulus.presentation
-        values, method = self._value_source(scenario, question, p)
+        presentation = stimulus.presentation
+        values, method = self._value_source(scenario, question, presentation)
         if values is None:
             return Answer(choice_id=guess_choice(question), method="guess")
 
-        answer_value = apply_op(question.compute, values, p.order)
+        answer_value = apply_op(question.compute, values, presentation.order)
         if self.persona == "careless" and question.compute["op"] in (
             "argmin",
             "argmax",
         ):
-            answer_value = self._careless_adjust(question, values, p, answer_value)
+            answer_value = self._careless_adjust(
+                question, values, presentation, answer_value
+            )
 
         choice = value_to_choice(question, answer_value)
         if choice is None:
@@ -53,29 +55,44 @@ class SimulatedReader(Reader):
         return Answer(choice_id=choice, method=method)
 
     def _value_source(
-        self, scenario: Scenario, question: Question, p: Presentation
+        self, scenario: Scenario, question: Question, presentation: Presentation
     ) -> Tuple[Optional[Dict[str, Any]], str]:
-        """Decide which per-item values this persona reasons over, and how it got them."""
+        """Choose visible values or compute a target from visible inputs."""
         target = question.compute.get("field")
-        order = p.order
+        order = presentation.order
 
-        if target and all(p.shows_field(i, target) for i in order):
-            return {i: p.shown[i][target] for i in order}, "read"
+        if target and all(
+            presentation.shows_field(item_id, target) for item_id in order
+        ):
+            return {
+                item_id: presentation.shown[item_id][target] for item_id in order
+            }, "read"
 
         if self.persona in ("diligent", "careless") and target in scenario.derived:
-            inputs = compute.expr_fields(scenario.derived[target])
-            if all(all(f in p.shown[i] for f in inputs) for i in order):
+            expression = scenario.derived[target]
+            inputs = compute.expr_fields(expression)
+            if all(
+                field in presentation.shown[item_id]
+                for item_id in order
+                for field in inputs
+            ):
                 return (
                     {
-                        i: compute.evaluate_expr(scenario.derived[target], p.shown[i])
-                        for i in order
+                        item_id: compute.evaluate_expr(
+                            expression, presentation.shown[item_id]
+                        )
+                        for item_id in order
                     },
                     "computed",
                 )
 
-        emph = p.emphasized_field
-        if emph and all(p.shows_field(i, emph) for i in order):
-            return {i: p.shown[i][emph] for i in order}, "headline"
+        emphasized = presentation.emphasized_field
+        if emphasized and all(
+            presentation.shows_field(item_id, emphasized) for item_id in order
+        ):
+            return {
+                item_id: presentation.shown[item_id][emphasized] for item_id in order
+            }, "headline"
 
         return None, "guess"
 
@@ -83,19 +100,23 @@ class SimulatedReader(Reader):
         self,
         question: Question,
         values: Dict[str, Any],
-        p: Presentation,
+        presentation: Presentation,
         answer_value: Any,
     ) -> Any:
         op = question.compute["op"]
-        order = p.order
+        order = presentation.order
         if len(order) < 2:
             return answer_value
-        ranked = sorted(order, key=lambda i: values[i], reverse=(op == "argmax"))
-        top, runner = ranked[0], ranked[1]
-        v1, v2 = values[top], values[runner]
-        gap = abs(v1 - v2) / max(abs(v1), abs(v2), 1)
+        ranked = sorted(
+            order, key=lambda item_id: values[item_id], reverse=(op == "argmax")
+        )
+        winner, runner_up = ranked[:2]
+        first_value, second_value = values[winner], values[runner_up]
+        gap = abs(first_value - second_value) / max(
+            abs(first_value), abs(second_value), 1
+        )
         if gap >= CLOSE_MARGIN:
             return answer_value
-        if p.highlight_item is not None and p.highlight_item == top:
-            return top
-        return runner
+        if presentation.highlight_item == winner:
+            return winner
+        return runner_up

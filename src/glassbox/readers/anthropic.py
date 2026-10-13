@@ -1,4 +1,4 @@
-"""Lazy anthropic reader payloads and reply extraction."""
+"""Reader payloads and reply extraction for the Anthropic Messages API."""
 
 from __future__ import annotations
 
@@ -70,10 +70,10 @@ class AnthropicReader(Reader):
             if block["type"] == "text"
         )
         key = require_key("ANTHROPIC_API_KEY")
-        resp = post_json(
+        response = post_json(
             ENDPOINT, {"x-api-key": key, "anthropic-version": API_VERSION}, payload
         )
-        text = extract_text(resp)
+        text = extract_text(response)
         return Answer(
             choice_id=parse_choice(text, question),
             method="api",
@@ -84,9 +84,9 @@ class AnthropicReader(Reader):
 
 def extract_text(resp: Dict[str, Any]) -> str:
     """The first text block of a Messages response."""
-    if not isinstance(resp, dict) or not isinstance(resp.get("content", []), list):
+    if not isinstance(resp, dict) or not isinstance(resp.get("content"), list):
         return ""
-    for block in resp.get("content", []) or []:
+    for block in resp["content"]:
         if isinstance(block, dict) and block.get("type") == "text":
             text = block.get("text", "")
             return text if isinstance(text, str) else ""

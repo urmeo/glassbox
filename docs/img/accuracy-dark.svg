@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 430" width="780" height="430" role="img" aria-labelledby="chart-title chart-desc" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif">
+<title id="chart-title">Accuracy by reader and interface</title>
+<desc id="chart-desc">Each simulated reader's accuracy on the cards, table and annotated interfaces, averaged over three scenarios. These are deterministic fixture results, not measured model or human comprehension.</desc>
+<text x="20.0" y="28.0" fill="#9198a1" font-size="11" text-anchor="start" font-weight="700">ACCURACY BY READER</text>
+<text x="20.0" y="46.0" fill="#9198a1" font-size="11" text-anchor="start">9 questions per reader and interface across 3 scenarios</text>
+<line x1="20.0" y1="62.0" x2="760.0" y2="62.0" stroke="#6e7681" stroke-width="1" opacity="0.35"/>
+<line x1="230.0" y1="82.0" x2="230.0" y2="361.0" stroke="#6e7681" stroke-width="1" opacity="0.30"/>
+<text x="230.0" y="76.0" fill="#9198a1" font-size="10" text-anchor="middle">0%</text>
+<line x1="420.0" y1="82.0" x2="420.0" y2="361.0" stroke="#6e7681" stroke-width="1" opacity="0.30"/>
+<text x="420.0" y="76.0" fill="#9198a1" font-size="10" text-anchor="middle">50%</text>
+<line x1="610.0" y1="82.0" x2="610.0" y2="361.0" stroke="#6e7681" stroke-width="1" opacity="0.30"/>
+<text x="610.0" y="76.0" fill="#9198a1" font-size="10" text-anchor="middle">100%</text>
+<text x="20.0" y="109.0" fill="#e6edf3" font-size="14" text-anchor="start" font-weight="700">literal</text>
+<text x="20.0" y="126.0" fill="#9198a1" font-size="10" text-anchor="start">simulated</text>
+<text x="218.0" y="106.0" fill="#9198a1" font-size="12" text-anchor="end">cards</text>
+<rect x="230.0" y="92.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="92.0" width="0.0" height="19.0" rx="3" fill="#d1495b"/>
+<text x="242.0" y="106.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">0%</text>
+<text x="218.0" y="131.0" fill="#9198a1" font-size="12" text-anchor="end">table</text>
+<rect x="230.0" y="117.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="117.0" width="337.8" height="19.0" rx="3" fill="#2ea043"/>
+<text x="579.8" y="131.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">89%</text>
+<text x="218.0" y="156.0" fill="#9198a1" font-size="12" text-anchor="end">annotated</text>
+<rect x="230.0" y="142.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="142.0" width="337.8" height="19.0" rx="3" fill="#8957e5"/>
+<text x="579.8" y="156.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">89%</text>
+<text x="20.0" y="209.0" fill="#e6edf3" font-size="14" text-anchor="start" font-weight="700">diligent</text>
+<text x="20.0" y="226.0" fill="#9198a1" font-size="10" text-anchor="start">simulated</text>
+<text x="218.0" y="206.0" fill="#9198a1" font-size="12" text-anchor="end">cards</text>
+<rect x="230.0" y="192.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="192.0" width="0.0" height="19.0" rx="3" fill="#d1495b"/>
+<text x="242.0" y="206.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">0%</text>
+<text x="218.0" y="231.0" fill="#9198a1" font-size="12" text-anchor="end">table</text>
+<rect x="230.0" y="217.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="217.0" width="380.0" height="19.0" rx="3" fill="#2ea043"/>
+<text x="622.0" y="231.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">100%</text>
+<text x="218.0" y="256.0" fill="#9198a1" font-size="12" text-anchor="end">annotated</text>
+<rect x="230.0" y="242.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="242.0" width="380.0" height="19.0" rx="3" fill="#8957e5"/>
+<text x="622.0" y="256.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">100%</text>
+<text x="20.0" y="309.0" fill="#e6edf3" font-size="14" text-anchor="start" font-weight="700">careless</text>
+<text x="20.0" y="326.0" fill="#9198a1" font-size="10" text-anchor="start">simulated</text>
+<text x="218.0" y="306.0" fill="#9198a1" font-size="12" text-anchor="end">cards</text>
+<rect x="230.0" y="292.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="292.0" width="42.2" height="19.0" rx="3" fill="#d1495b"/>
+<text x="284.2" y="306.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">11%</text>
+<text x="218.0" y="331.0" fill="#9198a1" font-size="12" text-anchor="end">table</text>
+<rect x="230.0" y="317.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="317.0" width="337.8" height="19.0" rx="3" fill="#2ea043"/>
+<text x="579.8" y="331.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">89%</text>
+<text x="218.0" y="356.0" fill="#9198a1" font-size="12" text-anchor="end">annotated</text>
+<rect x="230.0" y="342.0" width="380.0" height="19.0" rx="3" fill="#30363d"/>
+<rect x="230.0" y="342.0" width="380.0" height="19.0" rx="3" fill="#8957e5"/>
+<text x="622.0" y="356.0" fill="#e6edf3" font-size="12" text-anchor="start" font-weight="600">100%</text>
+<text x="20.0" y="420.0" fill="#9198a1" font-size="11" text-anchor="start">Simulated readers; scores follow configured rules.</text>
+</svg>

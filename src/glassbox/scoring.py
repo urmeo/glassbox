@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import os
 import statistics
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import interfaces, render
 from .interfaces import INTERFACE_VARIANTS
@@ -63,20 +64,35 @@ def read_all(
         raise ValueError("replicates must be an integer >= 1")
     if not isinstance(skip_render, bool):
         raise ValueError("skip_render must be a boolean")
-    scenarios, readers = list(scenarios), list(readers)
+    try:
+        scenarios, readers = list(scenarios), list(readers)
+    except TypeError as exc:
+        raise ValueError("scenarios and readers must be iterable selections") from exc
     if not scenarios or any(
-        not isinstance(s, Scenario) or not s.questions for s in scenarios
+        not isinstance(s, Scenario)
+        or not isinstance(s.id, str)
+        or not s.id.strip()
+        or not s.questions
+        for s in scenarios
     ):
-        raise ValueError("scenarios must be nonempty Scenario values with questions")
+        raise ValueError("scenarios must have nonempty string IDs and questions")
     if len({s.id for s in scenarios}) != len(scenarios):
         raise ValueError("scenario IDs must be distinct")
-    if not readers or any(not isinstance(r, Reader) for r in readers):
-        raise ValueError("readers must be nonempty Reader values")
+    if not readers or any(
+        not isinstance(reader, Reader)
+        or not isinstance(reader.name, str)
+        or not reader.name.strip()
+        for reader in readers
+    ):
+        raise ValueError("readers must be Reader values with nonempty string names")
     if len({r.name for r in readers}) != len(readers):
         raise ValueError("reader names must be distinct")
     if isinstance(variants, (str, bytes)):
         raise ValueError("variants must be a sequence")
-    variants = list(interfaces.ALL_VARIANTS) if variants is None else list(variants)
+    try:
+        variants = list(interfaces.ALL_VARIANTS) if variants is None else list(variants)
+    except TypeError as exc:
+        raise ValueError("variants must be an iterable selection") from exc
     if (
         not variants
         or any(
@@ -88,30 +104,30 @@ def read_all(
     stim_dir = os.path.join(out_dir, "stimuli") if out_dir else None
     results: List[QuestionResult] = []
     for scenario in scenarios:
-        for v in variants:
-            presentation = interfaces.variant(scenario, v)
+        for variant in variants:
+            presentation = interfaces.variant(scenario, variant)
             stimulus = render.render(presentation, out_dir=stim_dir, skip=skip_render)
             for reader in readers:
                 identity = resolve_family(reader.name)
                 model_family = getattr(reader, "model_family", identity.family)
                 resolved = getattr(reader, "family_resolved", identity.resolved)
                 basis = getattr(reader, "family_basis", identity.basis)
-                for rep in range(replicates):
-                    for q in scenario.questions:
-                        ans = reader.answer(scenario, q, stimulus)
+                for replicate in range(replicates):
+                    for question in scenario.questions:
+                        answer = reader.answer(scenario, question, stimulus)
                         results.append(
                             QuestionResult(
                                 scenario_id=scenario.id,
                                 reader=reader.name,
                                 reader_family=reader.family,
                                 reader_simulated=reader.simulated,
-                                variant=v,
-                                question_id=q.id,
-                                chosen=ans.choice_id,
-                                correct_answer=q.answer,
-                                correct=(ans.choice_id == q.answer),
-                                method=ans.method,
-                                replicate=rep,
+                                variant=variant,
+                                question_id=question.id,
+                                chosen=answer.choice_id,
+                                correct_answer=question.answer,
+                                correct=(answer.choice_id == question.answer),
+                                method=answer.method,
+                                replicate=replicate,
                                 reader_provider=getattr(
                                     reader, "provider", identity.provider
                                 ),
@@ -127,9 +143,9 @@ def read_all(
                                 stimulus_image_sha256=stimulus.image_sha256,
                                 render_metadata=dict(stimulus.render_metadata),
                                 reader_prompt_sha256=getattr(
-                                    ans, "prompt_sha256", None
+                                    answer, "prompt_sha256", None
                                 ),
-                                raw_answer=ans.raw,
+                                raw_answer=answer.raw,
                             )
                         )
     return results
@@ -138,15 +154,15 @@ def read_all(
 class ScoreBook:
     """Queryable metrics over a list of :class:`QuestionResult`."""
 
-    def __init__(self, results: Sequence[QuestionResult]):
+    def __init__(self, results: Iterable[QuestionResult]):
         self.results = list(results)
-        self.readers = sorted({r.reader for r in results})
-        self.scenarios = sorted({r.scenario_id for r in results})
-        self.variants = _ordered_variants({r.variant for r in results})
-        self._simulated = {r.reader: r.reader_simulated for r in results}
+        self.readers = sorted({r.reader for r in self.results})
+        self.scenarios = sorted({r.scenario_id for r in self.results})
+        self.variants = _ordered_variants({r.variant for r in self.results})
+        self._simulated = {r.reader: r.reader_simulated for r in self.results}
         self._family = {
             r.reader: r.reader_model_family
-            for r in results
+            for r in self.results
             if r.reader_family_resolved is True
             and r.reader_model_family != "unknown"
             and (
@@ -157,7 +173,7 @@ class ScoreBook:
                 )
             )
         }
-        self._deterministic = {r.reader: r.reader_deterministic for r in results}
+        self._deterministic = {r.reader: r.reader_deterministic for r in self.results}
         for name in self.readers:
             rows = [r for r in self.results if r.reader == name]
             identities = {
@@ -176,7 +192,7 @@ class ScoreBook:
             if len(identities) != 1:
                 raise ValueError("inconsistent identity for reader %r" % name)
         self._cell: Dict[Cell, List[QuestionResult]] = {}
-        for r in results:
+        for r in self.results:
             self._cell.setdefault((r.reader, r.scenario_id, r.variant), []).append(r)
 
     def accuracy(self, reader: str, scenario: str, variant: str) -> float:
@@ -218,13 +234,9 @@ class ScoreBook:
         by_q: Dict[str, List[Optional[str]]] = {}
         for qr in cell:
             by_q.setdefault(qr.question_id, []).append(qr.chosen)
-        fractions = []
-        for _, chosen in by_q.items():
-            modal = max(set(chosen), key=chosen.count)
-            fractions.append(chosen.count(modal) / len(chosen))
-        return (
-            statistics.fmean(fractions) if fractions else float("nan")
-        )
+        fractions = [max(Counter(chosen).values()) / len(chosen)
+                     for chosen in by_q.values()]
+        return statistics.fmean(fractions) if fractions else float("nan")
 
     def mean_lift(self, scenario: str, variant: str) -> float:
         return (
