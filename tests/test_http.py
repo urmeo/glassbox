@@ -20,6 +20,12 @@ class TruncatedResponse(io.BytesIO):
 
 
 class TestHTTP(unittest.TestCase):
+    def setUp(self):
+        for name, value in (("monotonic", 0.0), ("time", 1_700_000_000.0), ("sleep", None)):
+            patcher = patch("glassbox.readers._http.time." + name, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def test_valid_wire_payload_and_object_response(self):
         with patch(
             "urllib.request.urlopen", return_value=io.BytesIO(b'{"ok":true}')

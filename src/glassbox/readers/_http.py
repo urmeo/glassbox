@@ -7,13 +7,17 @@ import http.client
 import json
 import math
 import os
+import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict
+from datetime import timezone
+from email.utils import parsedate_to_datetime
+from typing import Any, Dict, Optional
 
 from .._config import strict_json
 
 _RETRYABLE = {429, 500, 502, 503, 529}
+_MAX_RETRY_DELAY = 30.0
 
 
 class MissingKeyError(RuntimeError):
@@ -39,14 +43,33 @@ def encode_png_base64(path: str) -> str:
         return base64.b64encode(fh.read()).decode("ascii")
 
 
+def _retry_delay(retry_after: Optional[str], backoff: float) -> float:
+    if not isinstance(retry_after, str) or not retry_after.strip():
+        return backoff
+    retry_after = retry_after.strip()
+    if retry_after.isascii() and retry_after.isdecimal():
+        # Huge valid integers become infinity and exceed the local wait limit.
+        return max(backoff, float(retry_after))
+    try:
+        retry_at = parsedate_to_datetime(retry_after)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        delay = retry_at.timestamp() - time.time()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return backoff
+    if not math.isfinite(delay) or delay < 0:
+        return backoff
+    return max(backoff, delay)
+
+
 def post_json(
     url: str,
     headers: Dict[str, str],
     payload: Dict[str, Any],
-    timeout: int = 90,
+    timeout: float = 90,
     retries: int = 2,
 ) -> Dict[str, Any]:
-    """POST ``payload`` as JSON and return the parsed response, with bounded retries."""
+    """POST JSON with a shared timeout budget for attempts and retry waits."""
     try:
         finite_timeout = math.isfinite(timeout)
     except (TypeError, OverflowError):
@@ -69,13 +92,20 @@ def post_json(
     request_headers = {name.lower(): value for name, value in headers.items()}
     request_headers.setdefault("content-type", "application/json")
 
+    deadline = time.monotonic() + timeout
     retries_left = retries
+    backoff = 1.0
+    failure = "request to %s exceeded timeout" % url
     while True:
         request = urllib.request.Request(
             url, data=data, headers=request_headers, method="POST"
         )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ReaderAPIError(failure) from None
+        retry_after = None
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(request, timeout=remaining) as response:
                 try:
                     result = strict_json(response.read().decode("utf-8"))
                 except (UnicodeError, ValueError, RecursionError) as exc:
@@ -84,8 +114,15 @@ def post_json(
                     ) from None
                 if not isinstance(result, dict):
                     raise ReaderAPIError("response from %s must be a JSON object" % url)
+                if time.monotonic() >= deadline:
+                    raise ReaderAPIError("request to %s exceeded timeout" % url)
                 return result
         except urllib.error.HTTPError as exc:
+            retry_after = next(
+                (value for name, value in (exc.headers or {}).items()
+                 if name.lower() == "retry-after"),
+                None,
+            )
             try:
                 body = exc.read().decode("utf-8", "replace")
             except (http.client.HTTPException, OSError):
@@ -97,11 +134,16 @@ def post_json(
                     secret = value.removeprefix("Bearer ")
                     if secret:
                         body = body.replace(secret, "[redacted]")
-            if exc.code not in _RETRYABLE or retries_left == 0:
-                raise ReaderAPIError(
-                    "HTTP %s from %s: %s" % (exc.code, url, body[:500])
-                ) from None
+            failure = "HTTP %s from %s: %s" % (exc.code, url, body[:500])
+            if exc.code not in _RETRYABLE:
+                raise ReaderAPIError(failure) from None
         except (http.client.HTTPException, urllib.error.URLError, OSError) as exc:
-            if retries_left == 0:
-                raise ReaderAPIError("request to %s failed: %s" % (url, exc)) from None
+            failure = "request to %s failed: %s" % (url, exc)
+        if retries_left == 0:
+            raise ReaderAPIError(failure) from None
+        delay = _retry_delay(retry_after, backoff)
+        if delay > _MAX_RETRY_DELAY or delay >= deadline - time.monotonic():
+            raise ReaderAPIError(failure) from None
+        time.sleep(delay)
         retries_left -= 1
+        backoff = min(backoff * 2, _MAX_RETRY_DELAY)
