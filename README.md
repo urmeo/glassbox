@@ -1,8 +1,8 @@
 # GlassBox
 
 GlassBox compares question accuracy across interfaces built from the same numeric data.
-It renders each layout, collects multiple-choice answers, and scores them against
-computed keys. A separate judge scores the interfaces for ranking comparisons.
+It renders each layout, collects multiple-choice answers, and scores them against the
+scenario's answer keys. A separate judge scores the interfaces for ranking comparisons.
 
 ![GlassBox pipeline: scenario data to interface views, reader answers, accuracy and independent judge scores, ranking comparison, and saved results. Repair, search, and human-accuracy comparison run separately.](docs/img/pipeline.svg)
 
@@ -11,11 +11,15 @@ repair, search, and anchoring are separate commands.
 
 The core uses Python 3.9+ and the standard library. Chrome is optional for screenshots.
 
-## Verify
+## Install and verify
+
+Run these commands from the repository root:
 
 ```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
 bash scripts/verify.sh
-python3 -m pip install .
 glassbox study --config offline_demo --out outputs/demo
 ```
 
