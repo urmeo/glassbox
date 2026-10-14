@@ -12,6 +12,8 @@ from .interfaces import Presentation
 
 @dataclass(frozen=True)
 class Stimulus:
+    """A text or image stimulus with a snapshot of its source presentation."""
+
     presentation: Presentation
     kind: str
     text: str
@@ -32,6 +34,7 @@ class Stimulus:
             raise ValueError("spec stimulus must not include image fields")
         if not isinstance(self.render_metadata, dict):
             raise ValueError("render_metadata must be a dict")
+        object.__setattr__(self, "presentation", copy.deepcopy(self.presentation))
         object.__setattr__(self, "render_metadata", copy.deepcopy(self.render_metadata))
 
     @property

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, FrozenSet, List, Optional
 
@@ -50,6 +51,12 @@ class Presentation:
     def unit_for(self, name: str) -> str:
         return self.field_units.get(name, self.unit)
 
+    def label_for(self, name: str) -> str:
+        label = self.value_label if name == self.primary_metric else ""
+        if not label.strip():
+            label = self.field_labels.get(name, "")
+        return label if label.strip() else _field_label(name)
+
     @property
     def polished(self) -> bool:
         return "polished" in self.features
@@ -65,12 +72,12 @@ class Presentation:
 
 
 def _num(v: Any) -> str:
-    if isinstance(v, float) and v.is_integer():
+    if isinstance(v, float):
+        if not v.is_integer() or "e" in repr(v) or repr(v) == "-0.0":
+            return format(v, ",")
         v = int(v)
     if isinstance(v, int):
         return "{:,}".format(v)
-    if isinstance(v, float):
-        return "{:,.2f}".format(v).rstrip("0").rstrip(".")
     return str(v)
 
 
@@ -82,6 +89,35 @@ def format_value(v: Any, unit: str) -> str:
     if unit:
         return _num(v) + " " + unit
     return _num(v)
+
+
+def validate_display_values(presentation: Presentation) -> None:
+    """Require each shown numeric value to survive its display formatting exactly."""
+    for item_id in presentation.order:
+        for name, value in presentation.shown[item_id].items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            message = "numeric display loses precision for %s/%s" % (item_id, name)
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(message)
+            units = {presentation.field_units.get(name, "")}
+            if name in (presentation.primary_metric, presentation.emphasized_field):
+                units.add(presentation.unit_for(name))
+            for unit in units:
+                formatted = format_value(value, unit)
+                prefix = "$" if unit in ("$", "$k") else ""
+                suffix = "k" if unit == "$k" else (" " + unit if unit and unit != "$" else "")
+                if (not isinstance(formatted, str) or not formatted.startswith(prefix)
+                        or not formatted.endswith(suffix)):
+                    raise ValueError(message)
+                token = formatted[len(prefix):len(formatted) - len(suffix) if suffix else None]
+                try:
+                    parsed = (float if isinstance(value, float) else int)(token.replace(",", ""))
+                except (ValueError, OverflowError) as error:
+                    raise ValueError(message) from error
+                if parsed != value or (isinstance(value, float) and value == 0
+                                       and math.copysign(1, parsed) != math.copysign(1, value)):
+                    raise ValueError(message)
 
 
 def build(
@@ -164,10 +200,12 @@ def build(
         order = sorted(order, key=lambda iid: values[iid], reverse=direction == "argmax")
     unit = scenario.data.get("unit", "") if metric == pres.primary_metric else ""
     label = (
-        scenario.data.get("value_label", "")
+        scenario.data.get("value_label", "") or _field_label(metric)
         if metric == pres.primary_metric
         else _field_label(metric)
     )
+    if not label.strip():
+        label = _field_label(metric)
     display = scenario.data.get("presentation", {}).get("field_display", {})
     units = {metric: unit}
     if pres.headline_field and pres.headline_field != metric:
@@ -175,7 +213,8 @@ def build(
     labels = {metric: label}
     for name, hints in display.items():
         units[name] = hints.get("unit", units.get(name, ""))
-        labels[name] = hints.get("value_label", _field_label(name))
+        field_label = hints.get("value_label", "")
+        labels[name] = field_label if field_label.strip() else _field_label(name)
     unit, label = units[metric], labels[metric]
     return Presentation(
         scenario_id=scenario.id,
@@ -315,11 +354,7 @@ def _render_cards(p: Presentation) -> str:
         )
         headline_html = ""
         if p.emphasized_field and p.emphasized_field in row:
-            label = (
-                p.value_label
-                if p.emphasized_field == p.primary_metric
-                else p.field_labels.get(p.emphasized_field, _field_label(p.emphasized_field))
-            )
+            label = p.label_for(p.emphasized_field)
             headline_html = (
                 '<div class="headline">'
                 + html.escape(format_value(row[p.emphasized_field], p.unit_for(p.emphasized_field)))
@@ -332,7 +367,7 @@ def _render_cards(p: Presentation) -> str:
                 continue
             lis.append(
                 "<li><span>"
-                + html.escape(p.field_labels.get(name, _field_label(name)))
+                + html.escape(p.label_for(name))
                 + "</span><span>"
                 + html.escape(format_value(value, p.field_units.get(name, "")))
                 + "</span></li>"
@@ -360,11 +395,11 @@ def _render_table(p: Presentation) -> str:
                 raw_cols.append(f)
     metric_shown = any(p.primary_metric in p.shown[iid] for iid in p.order)
     header = "<tr><th>option</th>" + "".join(
-        "<th>" + html.escape(p.field_labels.get(name, _field_label(name))) + "</th>"
+        "<th>" + html.escape(p.label_for(name)) + "</th>"
         for name in raw_cols
     )
     if metric_shown:
-        header += "<th>" + html.escape(p.value_label or _field_label(p.primary_metric)) + "</th>"
+        header += "<th>" + html.escape(p.label_for(p.primary_metric)) + "</th>"
     header += "</tr>"
 
     rows = []
@@ -406,11 +441,11 @@ def render_text(p: Presentation, include_header: bool = True) -> str:
         row = p.shown[iid]
         parts = []
         for name, value in row.items():
-            label = p.field_labels.get(name, _field_label(name))
+            label = p.label_for(name)
             if name == p.primary_metric:
                 parts.append(
                     "%s = %s"
-                    % (p.value_label or label, format_value(value, p.unit_for(name)))
+                    % (label, format_value(value, p.unit_for(name)))
                 )
             elif name == p.emphasized_field:
                 parts.append("%s: %s" % (label, format_value(value, p.unit_for(name))))

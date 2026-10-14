@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SMOKE = """
 import importlib, pathlib, pkgutil, subprocess, sys
 import glassbox
+from dataclasses import replace
+from glassbox import interfaces, render
 from glassbox.resources import decode_json, resource_names, resource_bytes
 from glassbox.schema import load_all_scenarios
 root = pathlib.Path(sys.argv[1])
@@ -29,6 +31,17 @@ for kind in ("scenarios", "prompts", "studies", "anchors", "training"):
 assert count == 8
 scenarios = load_all_scenarios()
 assert len(scenarios) == 3 and sum(len(s.questions) for s in scenarios.values()) == 9
+precision = replace(
+    interfaces.variant(scenarios["loans"], "table"),
+    order=["A", "B"], shown={"A": {"total_cost": 0.001}, "B": {"total_cost": 0.002}},
+    value_label="", field_labels={},
+)
+stimulus = render.render(precision, skip=True)
+assert "total cost = $0.001" in stimulus.text and "total cost = $0.002" in stimulus.text
+assert "$0.001" in precision.to_html() and "$0.002" in precision.to_html()
+precision.shown["A"]["total_cost"] = 999
+assert stimulus.presentation.shown["A"]["total_cost"] == 0.001
+assert stimulus.text == stimulus.presentation.to_text()
 def run(args, status=0, console=False):
     command = [str(pathlib.Path(sys.executable).with_name("glassbox"))] if console else [sys.executable, "-m", "glassbox"]
     result = subprocess.run(command + args, capture_output=True, text=True)
@@ -59,7 +72,7 @@ for path in pathlib.Path(".").rglob("*.json"):
     decode_json(path.read_text(encoding="utf-8"), str(path))
 assert pathlib.Path("demo/results.json").is_file()
 assert pathlib.Path("repair/transcript.md").is_file()
-print("Installed checks: 8 resources; 3 scenarios; 9 questions; 14 CLI cases; strict JSON.")
+print("Installed checks: 8 resources; 3 scenarios; 9 questions; 14 CLI cases; strict JSON; precise detached stimuli.")
 """
 
 

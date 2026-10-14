@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import os
 import re
@@ -14,7 +15,7 @@ import zlib
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .interfaces import Presentation
+from .interfaces import Presentation, validate_display_values
 from .output_paths import validate_output_files
 from .stimuli import Stimulus
 
@@ -296,6 +297,8 @@ def _component(value: str) -> str:
 def render(
     presentation: Presentation, out_dir: Optional[str] = None, skip: bool = False
 ) -> Stimulus:
+    presentation = copy.deepcopy(presentation)
+    validate_display_values(presentation)
     text = presentation.to_text()
     if skip or not chrome_available():
         return Stimulus(
