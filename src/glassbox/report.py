@@ -15,7 +15,10 @@ from typing import Any, Dict, List, Optional, Sequence
 from . import __version__
 from .analysis import CrossFamilyAnalysis, H1Analysis
 from .anchor import AnchorResult
-from .reward import EvalResult
+from .reward import EvalResult, HeldOutResult
+from .selection import (
+    SelectionArtifact, selection_payload, validate_selection, write_selection,
+)
 from .render import renderer_version
 from .repair import RepairResult
 from .schema import (
@@ -196,6 +199,7 @@ def build_results(
             "preference": cross.preference,
             "cross_family_agreement": cross.cross_family_agreement,
             "survives_across_families": cross.survives_across_families,
+            "reversal_comparison_available": cross.reversal_comparison_available,
             "survival_definition": "any_reversal_in_every_resolved_family",
             "common_reversals": cross.common_reversals,
             "unresolved_readers": cross.unresolved_readers,
@@ -212,15 +216,19 @@ def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
         % (cross.n_families, ", ".join(cross.unresolved_readers) or "none"),
         "",
     ]
+    if not cross.reversal_comparison_available:
+        reversal_status = "unavailable"
+    else:
+        reversal_status = "yes" if cross.survives_across_families else "no"
     lines.append(
         "Any reversal in every resolved family: **%s** (requires at least 2)."
-        % ("yes" if cross.survives_across_families else "no")
+        % reversal_status
     )
     lines.append(
         "Common reversed pairs: %s."
         % (
-            ", ".join("`%s` over `%s`" % pair for pair in cross.common_reversals)
-            or "none"
+            (", ".join("`%s` over `%s`" % pair for pair in cross.common_reversals) or "none")
+            if cross.reversal_comparison_available else "unavailable"
         )
     )
     lines.append(
@@ -242,10 +250,10 @@ def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
         )
         for v in cross.interface_variants:
             lines.append(
-                "| %s | %.2f | %s |"
+                "| %s | %s | %s |"
                 % (
                     v,
-                    cross.preference[v],
+                    _corr(cross.preference[v]),
                     " | ".join(_pct(f.comp_lift[v]) for f in cross.families),
                 )
             )
@@ -281,6 +289,15 @@ def render_report_md(
             h1.judge.comparison_count,
         )
     )
+    if h1.judge.evidence:
+        lines.append(
+            "Judgments: %d valid (including %d ties), %d invalid, %d abstained."
+            % (h1.judge.valid_count, h1.judge.tie_count,
+               h1.judge.invalid_count, h1.judge.abstained_count)
+        )
+        lines.append(
+            "Invalid and abstained replies receive no credit and are excluded from rate denominators."
+        )
     if h1.judge.simulated:
         lines.append(
             "> **Synthetic judge.** These scores use fixed fixture rules, including when readers are real."
@@ -289,20 +306,23 @@ def render_report_md(
         "Declared deterministic: **%s**."
         % ("yes" if h1.deterministic else "no")
     )
-    lines.extend(
-        [
+    if h1.divergence_found:
+        ranking_status = "a reversal is present"
+    elif any(math.isfinite(row.pref_score) for s in h1.scenarios for row in s.rows):
+        ranking_status = "no reversal among scored interfaces"
+    else:
+        ranking_status = "judge scores unavailable"
+    lines.extend([
+        "",
+        "Judge score and MCQ lift: **%s**; mean Spearman %s across %d scenarios."
+        % (ranking_status, _corr(h1.mean_spearman), len(h1.scenarios)),
+        "",
+    ])
+    if any(not math.isfinite(row.pref_score) for s in h1.scenarios for row in s.rows):
+        lines.extend([
+            "Judge scores with no valid comparisons are undefined. Ranks and correlations use finite scores only.",
             "",
-            "Judge score and MCQ lift: **%s**; mean Spearman %s across %d scenarios."
-            % (
-                "a reversal is present"
-                if h1.divergence_found
-                else "no reversal detected",
-                _corr(h1.mean_spearman),
-                len(h1.scenarios),
-            ),
-            "",
-        ]
-    )
+        ])
     for sh in h1.scenarios:
         lines.extend(
             [
@@ -316,16 +336,16 @@ def render_report_md(
                 "|---|---:|---:|---:|:---:|:---:|",
             ]
         )
-        for row in sorted(sh.rows, key=lambda r: r.comp_rank):
+        for row in sorted(sh.rows, key=lambda r: (r.comp_rank is None, r.comp_rank or 0)):
             lines.append(
-                "| %s | %s | %.0f%% | %.2f | %d | %d |"
+                "| %s | %s | %s | %s | %s | %s |"
                 % (
                     row.variant,
                     _pct(row.comp_lift),
-                    row.mean_accuracy * 100,
-                    row.pref_score,
-                    row.comp_rank,
-                    row.pref_rank,
+                    _percent(row.mean_accuracy),
+                    _corr(row.pref_score),
+                    row.comp_rank if row.comp_rank is not None else "undefined",
+                    row.pref_rank if row.pref_rank is not None else "undefined",
                 )
             )
         lines.append("")
@@ -335,8 +355,32 @@ def render_report_md(
                 % (rv.preferred, rv.understood, target, rv.pref_gap, _pct(-rv.comp_gap))
             )
         if not sh.reversals:
-            lines.append("No reversed pair.")
+            scored = sum(
+                math.isfinite(row.pref_score) and math.isfinite(row.comp_lift)
+                for row in sh.rows
+            )
+            lines.append(
+                "No reversed pair among scored interfaces." if scored >= 2
+                else "Too few scored interfaces to compare rankings."
+            )
         lines.append("")
+    if h1.judge.evidence:
+        lines.extend([
+            "## Judge coverage", "",
+            "Rates use valid comparisons only; coverage can differ after invalid or abstained replies.", "",
+            "| scenario | interface | credit | valid | planned |",
+            "|---|---|---:|---:|---:|",
+        ])
+        for evidence in h1.judge.evidence:
+            for score in evidence.variant_scores:
+                lines.append("| %s | %s | %.2f | %d | %d |" % (
+                    evidence.scenario_id, score.variant, score.credit,
+                    score.denominator, score.planned_count,
+                ))
+        lines.extend([
+            "", "A/B order, outcomes, raw replies and prompt hashes are in `results.json` under `meta.judge.evidence`.", "",
+            "Cross-family judge means require a finite score in every selected scenario.", "",
+        ])
     if cross is not None:
         lines.append(render_cross_family_md(cross))
     return "\n".join(lines)
@@ -440,6 +484,10 @@ ANCHOR_FIXTURE_CAVEAT = (
     "comparisons need matching questions and presentation conditions, with a "
     "documented source."
 )
+
+
+def _percent(value: float) -> str:
+    return "%.0f%%" % (value * 100) if math.isfinite(value) else "undefined"
 
 
 def _corr(x: float) -> str:
@@ -607,12 +655,19 @@ def write_optimize(
     training: Optional[Dict[str, Any]] = None,
     *,
     protected_paths: Sequence[str] = (),
+    selection: Optional[SelectionArtifact] = None,
 ) -> Dict[str, str]:
-    report_path, json_path = _destinations(
-        out_dir, ("optimize.md", "optimize.json"), protected_paths
-    )
+    names = ("optimize.md", "optimize.json")
+    if selection is not None:
+        names += ("selection.json",)
+    destinations = _destinations(out_dir, names, protected_paths)
+    report_path, json_path = destinations[:2]
+    if selection is not None:
+        write_selection(destinations[2], selection)
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(render_optimize_md(ev, readers, training))
+        if selection is not None:
+            fh.write("\nFrozen selection: [selection.json](selection.json). Evaluate it on separate scenarios.\n")
     with open(json_path, "w", encoding="utf-8") as fh:
         _dump(
             {
@@ -630,10 +685,86 @@ def write_optimize(
                 "all_readers_simulated": ev.all_readers_simulated,
                 "any_reader_simulated": ev.any_reader_simulated,
                 "training": training,
+                "selection_sha256": selection.sha256 if selection is not None else None,
+                "selection_file": "selection.json" if selection is not None else None,
             },
             fh,
         )
-    return {"report": report_path, "optimize": json_path}
+    paths = {"report": report_path, "optimize": json_path}
+    if selection is not None:
+        paths["selection"] = destinations[2]
+    return paths
+
+
+def render_evaluation_md(result: HeldOutResult) -> str:
+    lines = [
+        "# GlassBox: frozen feature evaluation", "",
+        "Selection scenarios: " + ", ".join(result.selection_scenario_ids),
+        "Evaluation scenarios: " + ", ".join(s.scenario_id for s in result.scenarios),
+        "Readers: " + ", ".join(result.reader_names),
+        "Selection SHA-256: `%s`" % result.selection_sha256,
+        "Protocol: `%s`; baseline: `%s`; skip render: `%s`." % (
+            result.evaluation_protocol, result.baseline_sampling, result.skip_render,
+        ), "",
+        "Features were frozen before evaluation. Scenario IDs and task content are disjoint from the recorded selection set.",
+        "This checks recorded selection history; it cannot verify access outside this workflow.", "",
+    ]
+    if result.all_readers_simulated:
+        lines.extend([SIMULATED_CAVEAT, ""])
+    elif result.any_reader_simulated:
+        lines.extend(["> **Mixed readers.** Some scores come from synthetic fixtures.", ""])
+    lines.extend([
+        "Selected features: " + (", ".join(sorted(result.selected_features)) or "(none)"),
+        "Selection-set lift: %s (used for selection, not held-out)." % _pct(result.selection_reward), "",
+        "| evaluation scenario | questions | selected accuracy | cards accuracy | baseline accuracy | selected lift | cards lift |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ])
+    for scenario in result.scenarios:
+        lines.append("| %s | %d | %s | %s | %s | %s | %s |" % (
+            scenario.scenario_id, scenario.question_count,
+            _percent(scenario.selected_accuracy), _percent(scenario.cards_accuracy),
+            _percent(scenario.baseline_accuracy), _pct(scenario.selected_lift),
+            _pct(scenario.cards_lift),
+        ))
+    aggregate = result.aggregate
+    lines.extend([
+        "", "Mean held-out lift: selected %s; cards %s." % (
+            _pct(aggregate.selected_lift), _pct(aggregate.cards_lift),
+        ),
+        "Scenarios receive equal weight. The baseline is shared by the fixed selected and cards views within each evaluation scenario.",
+        "Scores describe these scenarios and readers; they do not establish population generalization.",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+def write_evaluation(
+    out_dir: str,
+    result: HeldOutResult,
+    selection: SelectionArtifact,
+    *,
+    protected_paths: Sequence[str] = (),
+) -> Dict[str, str]:
+    selection = validate_selection(selection)
+    if (
+        result.selection_sha256 != selection.sha256
+        or result.selected_features != selection.features
+        or result.selection_scenario_ids != selection.scenario_ids
+        or result.selection_reward != selection.selection_reward
+    ):
+        raise ValueError("evaluation result does not match the frozen selection")
+    if selection.source_path is not None:
+        protected_paths = tuple(protected_paths) + (selection.source_path,)
+    report_path, json_path = _destinations(
+        out_dir, ("evaluation.md", "evaluation.json"), protected_paths
+    )
+    payload = asdict(result)
+    payload["selected_features"] = sorted(result.selected_features)
+    payload["selection"] = selection_payload(selection)
+    with open(json_path, "w", encoding="utf-8") as stream:
+        _dump(payload, stream)
+    with open(report_path, "w", encoding="utf-8") as stream:
+        stream.write(render_evaluation_md(result))
+    return {"report": report_path, "evaluation": json_path}
 
 
 def _destinations(

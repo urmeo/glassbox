@@ -6,9 +6,9 @@ import hashlib
 import json
 import re
 import statistics
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from itertools import combinations
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from . import interfaces
 from ._config import positive_integer
@@ -27,6 +27,59 @@ class Preference:
 
 
 @dataclass(frozen=True)
+class PairwiseJudgment:
+    """One parsed choice, genuine tie, invalid reply, or explicit abstention."""
+
+    outcome: str
+    raw: str = ""
+    prompt_sha256: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.outcome not in ("A", "B", "tie", "invalid", "abstained"):
+            raise ValueError("pairwise outcome must be A, B, tie, invalid or abstained")
+        if not isinstance(self.raw, str):
+            raise ValueError("pairwise raw reply must be text")
+
+    @property
+    def status(self) -> str:
+        return "valid" if self.outcome in ("A", "B") else self.outcome
+
+
+@dataclass(frozen=True)
+class PairwiseComparison:
+    scenario_id: str
+    variant_a: str
+    variant_b: str
+    outcome: str
+    status: str
+    raw: str
+    prompt_sha256: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class VariantJudgeScore:
+    variant: str
+    credit: float
+    denominator: int
+    planned_count: int
+    score: float
+
+
+@dataclass(frozen=True)
+class ScenarioJudgeEvidence:
+    scenario_id: str
+    scenario_sha256: str
+    cache_key: str
+    protocol: str
+    comparisons: Tuple[PairwiseComparison, ...]
+    variant_scores: Tuple[VariantJudgeScore, ...]
+    valid_count: int
+    invalid_count: int
+    abstained_count: int
+    tie_count: int
+
+
+@dataclass(frozen=True)
 class JudgeMetadata:
     name: str
     spec: str
@@ -38,6 +91,11 @@ class JudgeMetadata:
     variants: Tuple[str, ...] = ()
     comparison_count: int = 0
     prompt_sha256: Optional[str] = None
+    valid_count: int = 0
+    invalid_count: int = 0
+    abstained_count: int = 0
+    tie_count: int = 0
+    evidence: Tuple[ScenarioJudgeEvidence, ...] = ()
 
     @property
     def score_label(self) -> str:
@@ -183,7 +241,9 @@ class PairwiseJudge:
     def prompt_sha256(self) -> Optional[str]:
         return None
 
-    def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
+    def compare(
+        self, scenario: Scenario, a: Presentation, b: Presentation
+    ) -> Union[PairwiseJudgment, str]:
         raise NotImplementedError
 
 
@@ -246,9 +306,17 @@ class ApiPairwiseJudge(PairwiseJudge):
             ],
         }
 
-    def compare(self, scenario: Scenario, a: Presentation, b: Presentation) -> str:
+    def compare(
+        self, scenario: Scenario, a: Presentation, b: Presentation
+    ) -> PairwiseJudgment:
         from .readers._http import post_json, require_key
 
+        payload = self.build_payload(a, b)
+        prompt = next(
+            block["text"]
+            for block in payload["messages"][0]["content"]
+            if block["type"] == "text"
+        )
         if self.family == "anthropic":
             from .readers.anthropic import ENDPOINT, API_VERSION, extract_text
 
@@ -256,7 +324,7 @@ class ApiPairwiseJudge(PairwiseJudge):
             response = post_json(
                 ENDPOINT,
                 {"x-api-key": key, "anthropic-version": API_VERSION},
-                self.build_payload(a, b),
+                payload,
             )
         else:
             from .readers.openai_compat import _ENDPOINTS, _KEY_ENV, extract_text
@@ -265,13 +333,22 @@ class ApiPairwiseJudge(PairwiseJudge):
             response = post_json(
                 _ENDPOINTS[self.family],
                 {"authorization": "Bearer " + key},
-                self.build_payload(a, b),
+                payload,
             )
-        return parse_ab(extract_text(response)) or "tie"
+        raw = extract_text(response)
+        outcome = parse_ab(raw)
+        if outcome is None:
+            outcome = (
+                "abstained" if raw.strip().casefold() in ("abstain", "abstained")
+                else "invalid"
+            )
+        return PairwiseJudgment(
+            outcome, raw, hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        )
 
 
 class PairwiseRatingJudge(Judge):
-    """Aggregate one ordered comparison per selected pair; ties split the point."""
+    """Judge both pair orders; exclude invalid replies and abstentions from rates."""
 
     def __init__(
         self,
@@ -283,75 +360,132 @@ class PairwiseRatingJudge(Judge):
         self._pw, self._variants = pairwise, _variants(variants)
         self.name, self.spec = "winrate(%s)" % pairwise.name, spec
         self.simulated, self.deterministic = pairwise.simulated, pairwise.deterministic
-        self.target, self.modality, self.protocol = (
+        self.target, self.modality = (
             pairwise.target,
             pairwise.modality,
-            pairwise.protocol,
         )
+        self.protocol = "counterbalanced_pairs_winrate.v2"
         self.comparison_count = 0
-        self._cache: Dict[str, Dict[str, float]] = {}
+        self._cache: Dict[str, ScenarioJudgeEvidence] = {}
 
     def metadata(self) -> JudgeMetadata:
+        evidence = tuple(self._cache.values())
         return JudgeMetadata(
-            self.name,
-            self.spec,
-            self.target,
-            self.modality,
-            self.protocol,
-            self.simulated,
-            self.deterministic,
-            self._variants,
-            self.comparison_count,
-            self._pw.prompt_sha256,
+            name=self.name,
+            spec=self.spec,
+            target=self.target,
+            modality=self.modality,
+            protocol=self.protocol,
+            simulated=self.simulated,
+            deterministic=self.deterministic,
+            variants=self._variants,
+            comparison_count=self.comparison_count,
+            prompt_sha256=self._pw.prompt_sha256,
+            valid_count=sum(item.valid_count for item in evidence),
+            invalid_count=sum(item.invalid_count for item in evidence),
+            abstained_count=sum(item.abstained_count for item in evidence),
+            tie_count=sum(item.tie_count for item in evidence),
+            evidence=evidence,
         )
 
-    def _winrates(self, scenario: Scenario) -> Dict[str, float]:
+    def _evidence(self, scenario: Scenario) -> ScenarioJudgeEvidence:
+        scenario_hash = scenario_sha256(scenario)
+        presentations = {
+            variant: interfaces.variant(scenario, variant) for variant in self._variants
+        }
         identity = (
-            scenario_sha256(scenario),
+            scenario_hash,
             self._variants,
+            tuple(
+                (
+                    variant,
+                    {**asdict(presentation), "features": sorted(presentation.features)},
+                    presentation.to_text(),
+                )
+                for variant, presentation in presentations.items()
+            ),
             self.name,
             self.protocol,
+            self._pw.name,
+            self._pw.protocol,
             self.target,
             self.modality,
             self._pw.prompt_sha256,
             getattr(self._pw, "max_tokens", None),
+            getattr(self._pw, "family", None),
+            getattr(self._pw, "model", None),
         )
         key = hashlib.sha256(
-            json.dumps(identity, separators=(",", ":"), allow_nan=False).encode("utf-8")
+            json.dumps(
+                identity, sort_keys=True, separators=(",", ":"), allow_nan=False
+            ).encode("utf-8")
         ).hexdigest()
         if key in self._cache:
             return self._cache[key]
-        presentations = {
-            variant: interfaces.variant(scenario, variant) for variant in self._variants
-        }
-        wins = {variant: 0.0 for variant in self._variants}
+        credits = {variant: 0.0 for variant in self._variants}
+        denominators = {variant: 0 for variant in self._variants}
+        comparisons = []
         for first, second in combinations(self._variants, 2):
-            winner = self._pw.compare(
-                scenario, presentations[first], presentations[second]
-            )
-            if winner not in ("A", "B", "tie"):
-                raise ValueError("pairwise result must be A, B or tie")
-            self.comparison_count += 1
-            if winner == "A":
-                wins[first] += 1.0
-            elif winner == "B":
-                wins[second] += 1.0
-            else:
-                wins[first] += 0.5
-                wins[second] += 0.5
-        comparisons_per_variant = len(self._variants) - 1
-        rates = {
-            variant: (
-                wins[variant] / comparisons_per_variant
-                if comparisons_per_variant
-                else 0.0
-            )
-            for variant in self._variants
-        }
-        self._cache[key] = rates
-        return rates
+            for variant_a, variant_b in ((first, second), (second, first)):
+                result = self._pw.compare(
+                    scenario, presentations[variant_a], presentations[variant_b]
+                )
+                if isinstance(result, str):
+                    result = PairwiseJudgment(result, raw=result)
+                if not isinstance(result, PairwiseJudgment):
+                    raise ValueError(
+                        "pairwise judge must return a judgment or outcome string"
+                    )
+                comparisons.append(PairwiseComparison(
+                    scenario_id=scenario.id,
+                    variant_a=variant_a,
+                    variant_b=variant_b,
+                    outcome=result.outcome,
+                    status=result.status,
+                    raw=result.raw,
+                    prompt_sha256=result.prompt_sha256,
+                ))
+                if result.status in ("invalid", "abstained"):
+                    continue
+                denominators[variant_a] += 1
+                denominators[variant_b] += 1
+                if result.outcome == "A":
+                    credits[variant_a] += 1.0
+                elif result.outcome == "B":
+                    credits[variant_b] += 1.0
+                else:
+                    credits[variant_a] += 0.5
+                    credits[variant_b] += 0.5
+        evidence = ScenarioJudgeEvidence(
+            scenario_id=scenario.id,
+            scenario_sha256=scenario_hash,
+            cache_key=key,
+            protocol=self.protocol,
+            comparisons=tuple(comparisons),
+            variant_scores=tuple(
+                VariantJudgeScore(
+                    variant=variant,
+                    credit=credits[variant],
+                    denominator=denominators[variant],
+                    planned_count=2 * (len(self._variants) - 1),
+                    score=(credits[variant] / denominators[variant]
+                           if denominators[variant] else float("nan")),
+                )
+                for variant in self._variants
+            ),
+            valid_count=sum(item.status in ("valid", "tie") for item in comparisons),
+            invalid_count=sum(item.status == "invalid" for item in comparisons),
+            abstained_count=sum(item.status == "abstained" for item in comparisons),
+            tie_count=sum(item.status == "tie" for item in comparisons),
+        )
+        self._cache[key] = evidence
+        self.comparison_count += len(comparisons)
+        return evidence
 
     def preference(self, scenario: Scenario, presentation: Presentation) -> float:
         if presentation.variant not in self._variants:
             raise ValueError("presentation variant was not selected for the judge")
-        return self._winrates(scenario)[presentation.variant]
+        return next(
+            item.score for item in self._evidence(scenario).variant_scores
+            if item.variant == presentation.variant
+        )

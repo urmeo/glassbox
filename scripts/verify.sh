@@ -12,6 +12,9 @@ printf '2/3 answer validation\n'
 printf '3/3 offline commands\n'
 "$glassbox_python" -m glassbox run --readers simulated --skip-render --out "$glassbox_check_dir/demo"
 "$glassbox_python" -m glassbox repair --scenario growth --question biggest_percent_gain --reader simulated:literal --skip-render --out "$glassbox_check_dir/repair"
+"$glassbox_python" -m glassbox optimize --readers simulated --scenarios loans,plans --skip-render --out "$glassbox_check_dir/selection"
+"$glassbox_python" -m glassbox evaluate --selection "$glassbox_check_dir/selection/selection.json" --scenarios growth --out "$glassbox_check_dir/evaluation"
+test -s "$glassbox_check_dir/evaluation/evaluation.json"
 test -s "$glassbox_check_dir/demo/results.json"
 test -s "$glassbox_check_dir/repair/transcript.md"
 printf 'Verified tests, source answers and offline commands.\n'

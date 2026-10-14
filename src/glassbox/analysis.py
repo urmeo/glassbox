@@ -7,7 +7,7 @@ import statistics
 from dataclasses import dataclass, field
 from itertools import combinations
 from numbers import Integral, Real
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import interfaces
 from .judge import Judge, JudgeMetadata, judge_all
@@ -130,8 +130,8 @@ class InterfaceRow:
     comp_lift: float
     mean_accuracy: float
     pref_score: float
-    comp_rank: int
-    pref_rank: int
+    comp_rank: Optional[int]
+    pref_rank: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -172,10 +172,13 @@ class H1Analysis:
         return any(s.reversals for s in self.scenarios)
 
 
-def _rank_desc(scores: List[float]) -> List[int]:
-    """Competition ranks, 1 = highest; ties share a rank."""
-    order = sorted(range(len(scores)), key=lambda i: -scores[i])
-    ranks = [0] * len(scores)
+def _rank_desc(scores: List[float]) -> List[Optional[int]]:
+    """Rank finite scores; missing scores have no rank."""
+    order = sorted(
+        (index for index, score in enumerate(scores) if math.isfinite(score)),
+        key=lambda index: -scores[index],
+    )
+    ranks: List[Optional[int]] = [None] * len(scores)
     last_score = None
     last_rank = 0
     for pos, idx in enumerate(order, start=1):
@@ -186,6 +189,19 @@ def _rank_desc(scores: List[float]) -> List[int]:
     return ranks
 
 
+def _paired_spearman(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Correlate only pairs with two finite observations."""
+    pairs = [
+        (first, second)
+        for first, second in zip(xs, ys)
+        if math.isfinite(first) and math.isfinite(second)
+    ]
+    if len(pairs) < 2:
+        return float("nan")
+    first, second = zip(*pairs)
+    return spearman(first, second)
+
+
 def _reader_agreement(book: ScoreBook, scenario: str, variants: List[str]) -> float:
     """Mean pairwise Spearman of readers' per-interface accuracy vectors."""
     readers = book.readers
@@ -194,7 +210,7 @@ def _reader_agreement(book: ScoreBook, scenario: str, variants: List[str]) -> fl
     vecs = {r: [book.accuracy(r, scenario, v) for v in variants] for r in readers}
     corrs = []
     for first, second in combinations(readers, 2):
-        rho = spearman(vecs[first], vecs[second])
+        rho = _paired_spearman(vecs[first], vecs[second])
         if not math.isnan(rho):
             corrs.append(rho)
     return statistics.fmean(corrs) if corrs else float("nan")
@@ -234,7 +250,11 @@ def analyze_h1(
         reversals: List[Reversal] = []
         for i in range(len(variants)):
             for j in range(len(variants)):
-                if pref[i] > pref[j] and comp[i] < comp[j]:
+                if (
+                    all(math.isfinite(value) for value in (pref[i], pref[j], comp[i], comp[j]))
+                    and pref[i] > pref[j]
+                    and comp[i] < comp[j]
+                ):
                     reversals.append(
                         Reversal(
                             preferred=variants[i],
@@ -248,7 +268,7 @@ def analyze_h1(
             ScenarioH1(
                 scenario_id=sid,
                 rows=rows,
-                spearman=spearman(comp, pref),
+                spearman=_paired_spearman(comp, pref),
                 reader_agreement=_reader_agreement(book, sid, variants),
                 reversals=reversals,
             )
@@ -292,6 +312,18 @@ class CrossFamilyAnalysis:
     def n_families(self) -> int:
         return len(self.families)
 
+    @property
+    def reversal_comparison_available(self) -> bool:
+        """Every resolved family needs at least two paired finite scores."""
+        return self.n_families >= 2 and all(
+            sum(
+                math.isfinite(family.comp_lift.get(variant, float("nan")))
+                and math.isfinite(self.preference.get(variant, float("nan")))
+                for variant in self.interface_variants
+            ) >= 2
+            for family in self.families
+        )
+
 
 def _reversal_pairs(
     variants: List[str], pref: Dict[str, float], comp: Dict[str, float]
@@ -300,7 +332,8 @@ def _reversal_pairs(
         (i, j)
         for i in variants
         for j in variants
-        if pref[i] > pref[j] and comp[i] < comp[j]
+        if all(math.isfinite(value) for value in (pref[i], pref[j], comp[i], comp[j]))
+        and pref[i] > pref[j] and comp[i] < comp[j]
     ]
 
 
@@ -317,7 +350,14 @@ def analyze_cross_family(
             if p.variant in pref_totals:
                 pref_totals[p.variant].append(p.score)
     preference = {
-        v: statistics.fmean(pref_totals[v]) if pref_totals[v] else 0.0 for v in variants
+        variant: (
+            statistics.fmean(scores)
+            if scores
+            and len(scores) == len(scenarios)
+            and all(math.isfinite(score) for score in scores)
+            else float("nan")
+        )
+        for variant, scores in pref_totals.items()
     }
 
     families: List[FamilyComprehension] = []
@@ -326,7 +366,11 @@ def analyze_cross_family(
         comp = {}
         for v in variants:
             lifts = [book.lift(r, s.id, v) for r in fam_readers for s in scenarios]
-            comp[v] = statistics.fmean(lifts) if lifts else 0.0
+            comp[v] = (
+                statistics.fmean(lifts)
+                if lifts and all(math.isfinite(lift) for lift in lifts)
+                else float("nan")
+            )
         reversals = _reversal_pairs(variants, preference, comp)
         families.append(
             FamilyComprehension(
@@ -342,7 +386,7 @@ def analyze_cross_family(
     for first, second in combinations(families, 2):
         first_lifts = [first.comp_lift[variant] for variant in variants]
         second_lifts = [second.comp_lift[variant] for variant in variants]
-        rho = spearman(first_lifts, second_lifts)
+        rho = _paired_spearman(first_lifts, second_lifts)
         if not math.isnan(rho):
             corrs.append(rho)
     agreement = statistics.fmean(corrs) if corrs else float("nan")

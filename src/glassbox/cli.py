@@ -14,6 +14,7 @@ from .anchor import load_anchor_set, run_anchor
 from .output_paths import validate_output_files
 from .readers import build_reader, build_readers
 from .schema import Scenario, load_all_scenarios
+from .selection import freeze_selection, load_selection, validate_evaluation
 from .studies import StudyConfig, StudyError, StudyResult, load_study, run_study
 from .training import (
     TrainingConfigError,
@@ -55,15 +56,23 @@ def _print_summary(result: StudyResult) -> None:
     if h1.any_reader_simulated:
         print("simulated reader answers are fixture outputs")
     print("judge: %s (%s)" % (h1.judge.name, h1.judge.score_label))
+    if h1.judge.evidence:
+        print(
+            "judgments: %d valid (%d ties), %d invalid, %d abstained"
+            % (h1.judge.valid_count, h1.judge.tie_count,
+               h1.judge.invalid_count, h1.judge.abstained_count)
+        )
     if h1.judge.simulated:
         print("judge scores are synthetic")
-    print(
-        "Rankings: %s (mean Spearman = %s)"
-        % (
-            "divergence found" if h1.divergence_found else "no divergence",
-            _corr(h1.mean_spearman),
-        )
-    )
+    if h1.divergence_found:
+        ranking_status = "divergence found"
+    elif any(math.isfinite(row.pref_score) for s in h1.scenarios for row in s.rows):
+        ranking_status = "no reversal among scored interfaces"
+    else:
+        ranking_status = "judge scores unavailable"
+    print("Rankings: %s (mean Spearman = %s)" % (
+        ranking_status, _corr(h1.mean_spearman),
+    ))
     for scenario in h1.scenarios:
         for reversal in scenario.reversals:
             print(
@@ -74,7 +83,11 @@ def _print_summary(result: StudyResult) -> None:
     if cross.n_families >= 2:
         print(
             "a reversal in every resolved family: %s (agreement = %s)"
-            % (cross.survives_across_families, _corr(cross.cross_family_agreement))
+            % (
+                cross.survives_across_families
+                if cross.reversal_comparison_available else "unavailable",
+                _corr(cross.cross_family_agreement),
+            )
         )
     print("wrote %s and %s" % (paths["report"], paths["results"]))
 
@@ -118,20 +131,25 @@ def cmd_optimize(args: argparse.Namespace) -> int:
         if training is not None and config._source_path is not None
         else ()
     )
-    validate_output_files(
-        args.out, ("optimize.md", "optimize.json"), protected_paths=protected
+    destinations = validate_output_files(
+        args.out, ("optimize.md", "optimize.json", "selection.json"),
+        protected_paths=protected,
     )
+    if destinations[2].exists():
+        raise ValueError("selection.json already exists; use a new output directory")
     scenarios = _select_scenarios(args.scenarios)
     readers = build_readers(_csv(args.readers, "readers"))
     evaluation = reward_mod.evaluate_generator(
         scenarios, readers, skip_render=args.skip_render
     )
+    selection = freeze_selection(evaluation, scenarios, readers, args.skip_render)
     paths = report.write_optimize(
         args.out,
         evaluation,
         [r.name for r in readers],
         training,
         protected_paths=protected,
+        selection=selection,
     )
     print("Search and evaluation use the same questions; no model is trained.")
     if any(reader.simulated for reader in readers):
@@ -146,7 +164,37 @@ def cmd_optimize(args: argparse.Namespace) -> int:
     )
     if training is not None:
         print("training configuration: %s (%s)" % (training["id"], training["status"]))
-    print("wrote %s" % paths["report"])
+    print("wrote %s and %s" % (paths["report"], paths["selection"]))
+    return 0
+
+
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    selection = load_selection(args.selection)
+    protected = (selection.source_path,)
+    validate_output_files(
+        args.out, ("evaluation.md", "evaluation.json"), protected_paths=protected
+    )
+    scenarios = _select_scenarios(args.scenarios)
+    validate_evaluation(selection, scenarios)
+    specs = (
+        _csv(args.readers, "readers")
+        if args.readers is not None else selection.reader_names
+    )
+    readers = build_readers(specs)
+    result = reward_mod.evaluate_selection(
+        selection, scenarios, readers, skip_render=args.skip_render
+    )
+    paths = report.write_evaluation(
+        args.out, result, selection, protected_paths=protected
+    )
+    print("frozen features evaluated on disjoint scenarios; no search was run")
+    if result.any_reader_simulated:
+        print("simulated reader answers are fixture outputs")
+    print(
+        "held-out lift: selected %+.0f pts; cards %+.0f pts"
+        % (result.aggregate.selected_lift * 100, result.aggregate.cards_lift * 100)
+    )
+    print("wrote %s and %s" % (paths["report"], paths["evaluation"]))
     return 0
 
 
@@ -252,6 +300,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_opt.add_argument("--skip-render", action="store_true")
     p_opt.add_argument("--out", default="outputs")
     p_opt.set_defaults(func=cmd_optimize)
+    p_eval = sub.add_parser(
+        "evaluate", help="score frozen features on separate scenarios", allow_abbrev=False
+    )
+    p_eval.add_argument("--selection", required=True, help="frozen selection JSON path")
+    p_eval.add_argument(
+        "--scenarios", required=True, help="comma-separated evaluation scenario ids"
+    )
+    p_eval.add_argument(
+        "--readers", default=None, help="defaults to the selection reader pool"
+    )
+    mode = p_eval.add_mutually_exclusive_group()
+    mode.add_argument("--skip-render", dest="skip_render", action="store_true")
+    mode.add_argument("--render", dest="skip_render", action="store_false")
+    p_eval.set_defaults(func=cmd_evaluate, skip_render=None)
+    p_eval.add_argument("--out", default="outputs/evaluation")
     p_anchor = sub.add_parser(
         "anchor", help="compare per-item accuracies", allow_abbrev=False
     )

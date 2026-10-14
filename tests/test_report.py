@@ -7,7 +7,12 @@ import tempfile
 import unittest
 
 from glassbox import analysis, report, schema, scoring
-from glassbox.judge import SimulatedJudge
+from glassbox.judge import (
+    PairwiseJudge,
+    PairwiseJudgment,
+    PairwiseRatingJudge,
+    SimulatedJudge,
+)
 from glassbox.readers import build_readers
 
 
@@ -87,6 +92,69 @@ class TestReport(unittest.TestCase):
         text = report.render_report_md(self.book, summary)
         self.assertIn("undefined", text)
         self.assertNotIn("nan pts", text)
+
+    def test_all_invalid_judgments_stay_missing_through_analysis_and_reports(self):
+        class InvalidJudge(PairwiseJudge):
+            name = "simulated:invalid"
+            simulated = True
+            deterministic = True
+
+            def compare(self, scenario, a, b):
+                return PairwiseJudgment("invalid", raw="A or B")
+
+        judge = PairwiseRatingJudge(InvalidJudge())
+        h1 = analysis.analyze_h1(self.book, self.scenarios, judge)
+        cross = analysis.analyze_cross_family(self.book, self.scenarios, judge)
+        self.assertFalse(h1.divergence_found)
+        self.assertFalse(cross.survives_across_families)
+
+        with tempfile.TemporaryDirectory() as directory:
+            paths = report.write_run(
+                directory, self.scenarios, self.results, self.book, h1, cross, True
+            )
+            with open(paths["results"], encoding="utf-8") as stream:
+                raw = stream.read()
+            with open(paths["report"], encoding="utf-8") as stream:
+                markdown = stream.read()
+
+        def reject_constant(token):
+            raise ValueError("nonstandard JSON constant: " + token)
+
+        results = json.loads(raw, parse_constant=reject_constant)
+        self.assertFalse(results["cross_family"]["reversal_comparison_available"])
+        self.assertIsNone(results["h1_summary"]["mean_spearman"])
+        self.assertFalse(results["h1_summary"]["divergence_found"])
+        self.assertTrue(all(
+            value is None for value in results["cross_family"]["preference"].values()
+        ))
+        for scenario in results["metrics"].values():
+            self.assertEqual(scenario["h1"]["reversals"], [])
+            for row in scenario["h1"]["rows"]:
+                self.assertIsNone(row["pref_score"])
+                self.assertIsNone(row["pref_rank"])
+                self.assertIsNotNone(row["comp_rank"])
+
+        metadata = results["h1_summary"]["judge"]
+        self.assertEqual(metadata["comparison_count"], 18)
+        self.assertEqual(metadata["invalid_count"], 18)
+        self.assertEqual(metadata["valid_count"], 0)
+        self.assertEqual(metadata["tie_count"], 0)
+        self.assertEqual(metadata["abstained_count"], 0)
+        self.assertEqual(len(metadata["evidence"]), 3)
+        for evidence in metadata["evidence"]:
+            for score in evidence["variant_scores"]:
+                self.assertEqual(score["credit"], 0)
+                self.assertEqual(score["denominator"], 0)
+                self.assertEqual(score["planned_count"], 4)
+                self.assertIsNone(score["score"])
+            for comparison in evidence["comparisons"]:
+                self.assertEqual(comparison["raw"], "A or B")
+                self.assertEqual(comparison["status"], "invalid")
+        self.assertNotIn("nan", markdown.lower())
+        self.assertIn("judge scores unavailable", markdown)
+        self.assertIn("Too few scored interfaces to compare rankings.", markdown)
+        self.assertIn("Any reversal in every resolved family: **unavailable**", markdown)
+        self.assertNotIn("**Reversal:**", markdown)
 
 
 if __name__ == "__main__":

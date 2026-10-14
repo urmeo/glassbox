@@ -345,7 +345,7 @@ class TestPreflight(unittest.TestCase):
             self.assertEqual(raw["meta"]["study"]["interfaces"], ["cards", "table"])
             judged = raw["h1_summary"]["judge"]
             self.assertEqual(judged["variants"], ["cards", "table"])
-            self.assertEqual(judged["comparison_count"], 1)
+            self.assertEqual(judged["comparison_count"], 2)
 
     def test_cli_runtime_failures_return_one(self):
         from glassbox.readers._http import ReaderAPIError

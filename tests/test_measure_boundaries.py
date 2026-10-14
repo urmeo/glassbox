@@ -60,16 +60,16 @@ class TestJudgeBoundaries(unittest.TestCase):
         )
         h1 = analysis.analyze_h1(book, [self.loans], judge)
         analysis.analyze_cross_family(book, [self.loans], judge)
-        self.assertEqual(pairwise.pairs, [("cards", "table")])
-        self.assertEqual(h1.judge.comparison_count, 1)
+        self.assertEqual(pairwise.pairs, [("cards", "table"), ("table", "cards")])
+        self.assertEqual(h1.judge.comparison_count, 2)
         self.assertEqual(h1.judge.variants, ("cards", "table"))
 
-    def test_three_variants_compare_three_pairs(self):
+    def test_three_variants_compare_six_presentations(self):
         pairwise = CountingJudge()
         judge = PairwiseRatingJudge(pairwise)
         judge.preference(self.loans, interfaces.variant(self.loans, "cards"))
-        self.assertEqual(len(pairwise.pairs), 3)
-        self.assertEqual(judge.comparison_count, 3)
+        self.assertEqual(len(pairwise.pairs), 6)
+        self.assertEqual(judge.comparison_count, 6)
 
     def test_content_prompt_and_protocol_invalidate_cache(self):
         pairwise = CountingJudge()
@@ -77,7 +77,7 @@ class TestJudgeBoundaries(unittest.TestCase):
         presentation = interfaces.variant(self.loans, "cards")
         judge.preference(self.loans, presentation)
         judge.preference(copy.deepcopy(self.loans), presentation)
-        self.assertEqual(len(pairwise.pairs), 1)
+        self.assertEqual(len(pairwise.pairs), 2)
         for mutated in (
             replace(self.loans, title="changed"),
             replace(
@@ -87,12 +87,36 @@ class TestJudgeBoundaries(unittest.TestCase):
             ),
         ):
             judge.preference(mutated, interfaces.variant(mutated, "cards"))
-        self.assertEqual(len(pairwise.pairs), 3)
+        self.assertEqual(len(pairwise.pairs), 6)
         pairwise.template = "template2"
         judge.preference(self.loans, presentation)
         judge.protocol = "changed_protocol"
         judge.preference(self.loans, presentation)
-        self.assertEqual(len(pairwise.pairs), 5)
+        self.assertEqual(len(pairwise.pairs), 10)
+
+    def test_rendered_text_invalidates_cache_without_scenario_changes(self):
+        pairwise = CountingJudge()
+        judge = PairwiseRatingJudge(pairwise, ["cards", "table"])
+        presentation = interfaces.variant(self.loans, "cards")
+        judge.preference(self.loans, presentation)
+        render_text = interfaces.render_text
+        with patch("glassbox.interfaces.render_text", side_effect=(
+            lambda *args, **kwargs: render_text(*args, **kwargs) + "\nChanged display text"
+        )):
+            judge.preference(self.loans, presentation)
+        self.assertEqual(len(pairwise.pairs), 4)
+
+    def test_presentation_features_invalidate_cache_when_text_is_unchanged(self):
+        pairwise = CountingJudge()
+        judge = PairwiseRatingJudge(pairwise, ["cards", "table"])
+        original = interfaces.variant(self.loans, "cards")
+        judge.preference(self.loans, original)
+        features = interfaces.VARIANT_FEATURES["cards"] - {"polished"}
+        with patch.dict(interfaces.VARIANT_FEATURES, {"cards": features}):
+            changed = interfaces.variant(self.loans, "cards")
+            self.assertEqual(original.to_text(), changed.to_text())
+            judge.preference(self.loans, changed)
+        self.assertEqual(len(pairwise.pairs), 4)
 
     def test_empty_duplicate_unknown_and_scalar_variants_reject(self):
         for variants in ([], ["cards", "cards"], ["unknown"], "cards", [True]):
@@ -108,9 +132,9 @@ class TestJudgeBoundaries(unittest.TestCase):
 
     def test_single_variant_has_no_comparisons(self):
         judge = PairwiseRatingJudge(CountingJudge(), ["cards"])
-        self.assertEqual(
-            judge.preference(self.loans, interfaces.variant(self.loans, "cards")), 0
-        )
+        self.assertTrue(math.isnan(
+            judge.preference(self.loans, interfaces.variant(self.loans, "cards"))
+        ))
         self.assertEqual(judge.comparison_count, 0)
 
     def test_selector_validation_is_pure_and_strict(self):
@@ -410,8 +434,21 @@ class TestProvenance(unittest.TestCase):
                     reader_family_basis="synthetic-fixture",
                 )
             )
+        class RankedVariants(PairwiseJudge):
+            simulated = True
+            deterministic = True
+
+            def compare(self, scenario, a, b):
+                ranks = {"cards": 2, "table": 1, "annotated": 0}
+                if ranks[a.variant] == ranks[b.variant]:
+                    return "tie"
+                return "A" if ranks[a.variant] > ranks[b.variant] else "B"
+
         cross = analysis.analyze_cross_family(
-            scoring.ScoreBook(rows), [scenario], PairwiseRatingJudge(CountingJudge())
+            scoring.ScoreBook(rows), [scenario], PairwiseRatingJudge(RankedVariants())
+        )
+        self.assertEqual(
+            cross.preference, {"cards": 1.0, "table": 0.5, "annotated": 0.0}
         )
         self.assertTrue(cross.survives_across_families)
         self.assertEqual(cross.common_reversals, [])

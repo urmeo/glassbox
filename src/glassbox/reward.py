@@ -5,13 +5,16 @@ from __future__ import annotations
 import itertools
 import statistics
 from dataclasses import dataclass
-from typing import FrozenSet, List, Optional, Sequence, Tuple
+from typing import FrozenSet, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from . import interfaces, render
 from .interfaces import Presentation, VARIANT_FEATURES
 from .readers.base import Reader
 from .schema import Scenario
 from .families import canonical_family, model_family
+
+if TYPE_CHECKING:
+    from .selection import SelectionArtifact
 
 GENERATOR_FEATURE_POOL = ["detail", "derived", "highlight", "sorted", "polished"]
 BASELINE_VARIANT = "baseline"
@@ -124,6 +127,94 @@ def evaluate_generator(
         reader_count=len(readers),
         any_reader_simulated=any(reader.simulated for reader in readers),
         all_readers_simulated=all(reader.simulated for reader in readers),
+    )
+
+
+@dataclass(frozen=True)
+class EvaluationMetrics:
+    selected_accuracy: float
+    cards_accuracy: float
+    baseline_accuracy: float
+    selected_lift: float
+    cards_lift: float
+
+
+@dataclass(frozen=True)
+class ScenarioEvaluation(EvaluationMetrics):
+    scenario_id: str
+    scenario_sha256: str
+    question_count: int
+
+
+@dataclass(frozen=True)
+class HeldOutResult:
+    selection_sha256: str
+    selected_features: FrozenSet[str]
+    selection_scenario_ids: Tuple[str, ...]
+    selection_reward: float
+    scenarios: Tuple[ScenarioEvaluation, ...]
+    aggregate: EvaluationMetrics
+    reader_names: Tuple[str, ...]
+    skip_render: bool
+    all_readers_simulated: bool
+    any_reader_simulated: bool
+    evaluation_protocol: str = "frozen_features_disjoint_scenarios.v1"
+    baseline_sampling: str = "shared_per_scenario"
+
+
+def evaluate_selection(
+    artifact: "SelectionArtifact",
+    scenarios: Sequence[Scenario],
+    readers: Sequence[Reader],
+    skip_render: Optional[bool] = None,
+) -> HeldOutResult:
+    """Evaluate frozen features once per disjoint scenario, without another search."""
+    from .selection import validate_evaluation, validate_selection
+    from .schema import scenario_sha256
+
+    artifact = validate_selection(artifact)
+    skip_render = artifact.skip_render if skip_render is None else skip_render
+    _inputs(scenarios, readers, skip_render)
+    validate_evaluation(artifact, scenarios)
+    features = artifact.features
+    # Build every view before rendering or asking readers, so bad inputs fail first.
+    presentations = [
+        (scenario,
+         interfaces.build(scenario, features, variant="selected"),
+         interfaces.variant(scenario, CARDS_VARIANT),
+         interfaces.variant(scenario, BASELINE_VARIANT))
+        for scenario in scenarios
+    ]
+    results = []
+    for scenario, selected, cards, baseline in presentations:
+        baseline_accuracy = _accuracy(scenario, baseline, readers, skip_render)
+        selected_accuracy = _accuracy(scenario, selected, readers, skip_render)
+        cards_accuracy = _accuracy(scenario, cards, readers, skip_render)
+        results.append(ScenarioEvaluation(
+            selected_accuracy=selected_accuracy,
+            cards_accuracy=cards_accuracy,
+            baseline_accuracy=baseline_accuracy,
+            selected_lift=selected_accuracy - baseline_accuracy,
+            cards_lift=cards_accuracy - baseline_accuracy,
+            scenario_id=scenario.id,
+            scenario_sha256=scenario_sha256(scenario),
+            question_count=len(scenario.questions),
+        ))
+    aggregate = EvaluationMetrics(**{
+        name: statistics.fmean(getattr(result, name) for result in results)
+        for name in EvaluationMetrics.__dataclass_fields__
+    })
+    return HeldOutResult(
+        selection_sha256=artifact.sha256,
+        selected_features=features,
+        selection_scenario_ids=artifact.scenario_ids,
+        selection_reward=artifact.selection_reward,
+        scenarios=tuple(results),
+        aggregate=aggregate,
+        reader_names=tuple(reader.name for reader in readers),
+        skip_render=skip_render,
+        all_readers_simulated=all(reader.simulated for reader in readers),
+        any_reader_simulated=any(reader.simulated for reader in readers),
     )
 
 

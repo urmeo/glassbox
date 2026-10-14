@@ -43,12 +43,23 @@ run(["study", "--config", "offline_demo", "--out", "study"])
 run(["repair", "--scenario", "growth", "--question", "biggest_percent_gain", "--reader", "simulated:literal", "--skip-render", "--out", "repair"])
 run(["anchor", "--set", "fixture", "--skip-render", "--out", "anchor"])
 run(["optimize", "--readers", "simulated", "--skip-render", "--out", "search"])
+run(["optimize", "--readers", "simulated", "--scenarios", "loans,plans", "--skip-render", "--out", "selection"])
+selection_before = pathlib.Path("selection/selection.json").read_bytes()
+run(["evaluate", "--selection", "selection/selection.json", "--scenarios", "growth", "--out", "evaluation"])
+run(["evaluate", "--selection", "selection/selection.json", "--scenarios", "loans", "--out", "overlap"], 2)
+run(["optimize", "--readers", "simulated", "--skip-render", "--out", "selection"], 2)
+assert pathlib.Path("selection/selection.json").read_bytes() == selection_before
+held_out = decode_json(pathlib.Path("evaluation/evaluation.json").read_text(), "evaluation")
+assert held_out["selection_scenario_ids"] == ["loans", "plans"]
+assert [s["scenario_id"] for s in held_out["scenarios"]] == ["growth"]
+assert held_out["selection_sha256"] == held_out["selection"]["sha256"]
+assert held_out["evaluation_protocol"] == "frozen_features_disjoint_scenarios.v1"
 run(["run", "--replicates", "0", "--skip-render"], 2)
 for path in pathlib.Path(".").rglob("*.json"):
     decode_json(path.read_text(encoding="utf-8"), str(path))
 assert pathlib.Path("demo/results.json").is_file()
 assert pathlib.Path("repair/transcript.md").is_file()
-print("Installed checks: 8 resources; 3 scenarios; 9 questions; 10 CLI cases; strict JSON.")
+print("Installed checks: 8 resources; 3 scenarios; 9 questions; 14 CLI cases; strict JSON.")
 """
 
 

@@ -1,10 +1,11 @@
 """Correlation and reversal fixtures."""
 
+import math
 import unittest
 from dataclasses import replace
 
 from glassbox import analysis, schema, scoring
-from glassbox.judge import SimulatedJudge
+from glassbox.judge import Judge, SimulatedJudge
 from glassbox.readers import build_readers
 
 try:
@@ -172,6 +173,7 @@ class TestCrossFamily(unittest.TestCase):
             )
 
     def test_divergence_survives_and_families_agree(self):
+        self.assertTrue(self.cross.reversal_comparison_available)
         self.assertTrue(self.cross.survives_across_families)
         self.assertGreater(self.cross.cross_family_agreement, 0.0)
 
@@ -183,7 +185,151 @@ class TestCrossFamily(unittest.TestCase):
         )
         cross = analysis.analyze_cross_family(book, self.scenarios, SimulatedJudge())
         self.assertEqual(cross.n_families, 1)
+        self.assertFalse(cross.reversal_comparison_available)
         self.assertFalse(cross.survives_across_families)
+
+    def test_missing_judge_scores_make_comparison_unavailable(self):
+        for scores in ({}, {"cards": 0.5}):
+            with self.subTest(scores=scores):
+                cross = analysis.analyze_cross_family(
+                    self.book, self.scenarios,
+                    _ScoreJudge({scenario.id: scores for scenario in self.scenarios}),
+                )
+                self.assertFalse(cross.reversal_comparison_available)
+                self.assertFalse(cross.survives_across_families)
+
+    def test_missing_family_lifts_make_comparison_unavailable(self):
+        book = scoring.ScoreBook([
+            row for row in self.book.results
+            if not (row.reader_model_family == "famB" and row.variant == "baseline")
+        ])
+        cross = analysis.analyze_cross_family(book, self.scenarios, SimulatedJudge())
+        self.assertEqual(cross.n_families, 2)
+        self.assertFalse(cross.reversal_comparison_available)
+        self.assertFalse(cross.survives_across_families)
+
+    def test_comparison_needs_finite_scores_on_the_same_views(self):
+        book = scoring.ScoreBook([
+            row for row in self.book.results
+            if not (row.reader_model_family == "famB" and row.variant == "annotated")
+        ])
+        judge = _ScoreJudge({
+            scenario.id: {"table": 0.5, "annotated": 0.5}
+            for scenario in self.scenarios
+        })
+        cross = analysis.analyze_cross_family(book, self.scenarios, judge)
+        self.assertFalse(cross.reversal_comparison_available)
+
+    def test_finite_ties_allow_comparison_without_a_reversal(self):
+        judge = _ScoreJudge({
+            scenario.id: {"cards": 0.5, "annotated": 0.5}
+            for scenario in self.scenarios
+        })
+        cross = analysis.analyze_cross_family(self.book, self.scenarios, judge)
+        self.assertTrue(cross.reversal_comparison_available)
+        self.assertFalse(cross.survives_across_families)
+        self.assertEqual(cross.common_reversals, [])
+
+
+class _ScoreJudge(Judge):
+    simulated = True
+    deterministic = True
+
+    def __init__(self, scores):
+        self.scores = scores
+
+    def preference(self, scenario, presentation):
+        return self.scores.get(scenario.id, {}).get(presentation.variant, float("nan"))
+
+
+class TestMissingJudgeScores(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scenarios = schema.load_all_scenarios()
+        cls.book = scoring.ScoreBook(
+            scoring.read_all(
+                list(cls.scenarios.values()), build_readers(["simulated"]), skip_render=True
+            )
+        )
+
+    def test_invalid_only_judge_has_no_judge_ranks_or_reversals(self):
+        scenarios = list(self.scenarios.values())
+        judge = _ScoreJudge({})
+        result = analysis.analyze_h1(self.book, scenarios, judge)
+        self.assertTrue(math.isnan(result.mean_spearman))
+        self.assertFalse(result.divergence_found)
+        for scenario in result.scenarios:
+            self.assertTrue(math.isnan(scenario.spearman))
+            self.assertEqual(scenario.reversals, [])
+            for row in scenario.rows:
+                self.assertTrue(math.isnan(row.pref_score))
+                self.assertIsNone(row.pref_rank)
+                self.assertIsNotNone(row.comp_rank)
+        cross = analysis.analyze_cross_family(self.book, scenarios, judge)
+        self.assertTrue(all(math.isnan(score) for score in cross.preference.values()))
+        self.assertFalse(cross.survives_across_families)
+        self.assertEqual(cross.common_reversals, [])
+
+    def test_partial_scores_rank_and_correlate_only_finite_pairs(self):
+        judge = _ScoreJudge({"loans": {"cards": 0.9, "annotated": 0.1}})
+        result = analysis.analyze_h1(self.book, [self.scenarios["loans"]], judge)
+        scenario = result.scenarios[0]
+        rows = {row.variant: row for row in scenario.rows}
+        self.assertEqual(rows["cards"].pref_rank, 1)
+        self.assertIsNone(rows["table"].pref_rank)
+        self.assertEqual(rows["annotated"].pref_rank, 2)
+        self.assertAlmostEqual(scenario.spearman, -1.0)
+        self.assertEqual(
+            [(reversal.preferred, reversal.understood) for reversal in scenario.reversals],
+            [("cards", "annotated")],
+        )
+
+    def test_constant_finite_scores_stay_tied_with_undefined_correlation(self):
+        judge = _ScoreJudge({"loans": {"cards": 0.5, "annotated": 0.5}})
+        result = analysis.analyze_h1(self.book, [self.scenarios["loans"]], judge)
+        scenario = result.scenarios[0]
+        self.assertEqual([row.pref_rank for row in scenario.rows], [1, None, 1])
+        self.assertTrue(math.isnan(scenario.spearman))
+        self.assertEqual(scenario.reversals, [])
+
+    def test_cross_family_does_not_average_over_missing_scenarios(self):
+        judge = _ScoreJudge({
+            "loans": {"cards": 0.9, "table": 0.2, "annotated": 0.6},
+            "plans": {"table": 0.4, "annotated": 0.8},
+        })
+        scenarios = [self.scenarios["loans"], self.scenarios["plans"]]
+        cross = analysis.analyze_cross_family(self.book, scenarios, judge)
+        self.assertTrue(math.isnan(cross.preference["cards"]))
+        self.assertAlmostEqual(cross.preference["table"], 0.3)
+        self.assertAlmostEqual(cross.preference["annotated"], 0.7)
+        self.assertTrue(
+            all("cards" not in pair for family in cross.families for pair in family.reversals)
+        )
+
+    def test_missing_baseline_has_no_lift_rank_or_zero_family_lift(self):
+        book = scoring.ScoreBook([
+            row for row in self.book.results if row.variant != "baseline"
+        ])
+        scenarios = list(self.scenarios.values())
+        result = analysis.analyze_h1(book, scenarios, SimulatedJudge())
+        for scenario in result.scenarios:
+            self.assertTrue(math.isnan(scenario.spearman))
+            self.assertEqual(scenario.reversals, [])
+            self.assertTrue(all(row.comp_rank is None for row in scenario.rows))
+        cross = analysis.analyze_cross_family(book, scenarios, SimulatedJudge())
+        self.assertTrue(
+            all(math.isnan(lift) for family in cross.families for lift in family.comp_lift.values())
+        )
+
+    def test_missing_reader_cell_does_not_break_agreement(self):
+        book = scoring.ScoreBook([
+            row for row in self.book.results
+            if not (row.scenario_id == "loans"
+                    and row.reader == "simulated:literal"
+                    and row.variant == "cards")
+        ])
+        result = analysis.analyze_h1(book, [self.scenarios["loans"]], SimulatedJudge())
+        self.assertTrue(math.isfinite(result.scenarios[0].reader_agreement))
 
 
 if __name__ == "__main__":
