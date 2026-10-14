@@ -12,9 +12,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 SMOKE = """
-import importlib, json, pathlib, pkgutil, subprocess, sys
+import importlib, pathlib, pkgutil, subprocess, sys
 import glassbox
-from glassbox.resources import resource_names, resource_bytes
+from glassbox.resources import decode_json, resource_names, resource_bytes
 from glassbox.schema import load_all_scenarios
 root = pathlib.Path(sys.argv[1])
 assert glassbox.__version__ == "0.1.1"
@@ -44,13 +44,11 @@ run(["repair", "--scenario", "growth", "--question", "biggest_percent_gain", "--
 run(["anchor", "--set", "fixture", "--skip-render", "--out", "anchor"])
 run(["optimize", "--readers", "simulated", "--skip-render", "--out", "search"])
 run(["run", "--replicates", "0", "--skip-render"], 2)
-def invalid_constant(value):
-    raise ValueError("nonfinite JSON: " + value)
 for path in pathlib.Path(".").rglob("*.json"):
-    json.loads(path.read_text(), parse_constant=invalid_constant)
+    decode_json(path.read_text(encoding="utf-8"), str(path))
 assert pathlib.Path("demo/results.json").is_file()
 assert pathlib.Path("repair/transcript.md").is_file()
-print("Installed checks: 8 resources; 3 scenarios; 9 answers; 10 CLI cases; strict JSON.")
+print("Installed checks: 8 resources; 3 scenarios; 9 questions; 10 CLI cases; strict JSON.")
 """
 
 
