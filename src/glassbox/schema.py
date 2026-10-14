@@ -350,7 +350,7 @@ def load_scenario(path: str) -> Scenario:
 
 
 def scenarios_dir(base: Optional[str] = None) -> str:
-    """Retain the directory helper for explicit filesystem callers."""
+    """Return the packaged scenario directory or one under ``base``."""
     if base is not None:
         return os.path.join(base, "data", "scenarios")
     return os.path.join(os.path.dirname(__file__), "_data", "scenarios")

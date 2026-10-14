@@ -2,7 +2,7 @@
   "id": "plans",
   "title": "Three phone plans",
   "domain": "choosing between options",
-  "description": "Three phone plans, each advertised by its headline monthly price. The real cost depends on data overage: for someone using 8 GB every month, a plan with a low base price but a small data allowance and steep overage can end up the most expensive over two years.",
+  "description": "Three phone plans for 8 GB of data per month. Compare total cost over 24 months, including overage charges.",
   "data": {
     "unit": "$",
     "value_label": "cost over two years",

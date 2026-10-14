@@ -2,7 +2,7 @@
   "id": "loans",
   "title": "Three loan offers",
   "domain": "choosing between options",
-  "description": "Three offers for the same $10,000 loan. Each card advertises a headline total, but a card's advertised total is not always what the loan actually costs once every payment and fee is counted. The honest comparison is monthly payment times the number of payments, plus fees.",
+  "description": "Three offers for a $10,000 loan. Total cost is monthly payment times the term in months, plus fees. Advertised totals may differ.",
   "data": {
     "unit": "$",
     "value_label": "total cost over term",

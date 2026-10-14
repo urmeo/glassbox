@@ -1,7 +1,7 @@
 {
   "id": "fixture",
   "source": "Synthetic human-accuracy fixture; no human study",
-  "note": "Invented per-item accuracy for offline checks; no H3 evidence.",
+  "note": "Synthetic per-item accuracy for offline checks.",
   "is_fixture": true,
   "condition": "raw",
   "items": [

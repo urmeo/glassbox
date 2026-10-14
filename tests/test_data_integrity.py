@@ -37,8 +37,8 @@ class TestPreservedContent(unittest.TestCase):
 
         expected = {
             "growth": "1ed7b669b7b8a296f8a0bff4f370b7ce5f32ed0c8b9f7164a69dfd6b802ddc96",
-            "loans": "894c88d07f167306dd7de6aafc79f9caaf69ea12538a3824be1c8b876ea6b745",
-            "plans": "3895dd5871b3d6965104c04894ec33a776dad88155f1f1663a88c84916995688",
+            "loans": "93160abd28fbd05437007a1a626bfb8d5c111775cc170f9784b655f11769e868",
+            "plans": "8e46979545be4819350cbfc113925a8eb62098e1d22cdd0f2c98523e3ca0d49f",
         }
         for name, digest in expected.items():
             self.assertEqual(resource_sha256("scenarios", name), digest)

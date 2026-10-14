@@ -1,4 +1,4 @@
-"""Strict JSON and concise reports with separate reader and judge provenance."""
+"""Strict JSON and Markdown reports with separate reader and judge provenance."""
 
 from __future__ import annotations
 
@@ -28,9 +28,8 @@ from .schema import (
 from .scoring import ScoreBook, QuestionResult
 
 SIMULATED_CAVEAT = (
-    "> **Simulated readers only.** These readers are fixtures whose "
-    "answers follow configured rules. These scores test the pipeline; they do not "
-    "measure model or human comprehension."
+    "> **Simulated readers only.** Scores follow fixture rules and do not measure "
+    "model or human comprehension."
 )
 
 
@@ -229,7 +228,7 @@ def render_cross_family_md(cross: CrossFamilyAnalysis) -> str:
         % _corr(cross.cross_family_agreement)
     )
     lines.append(
-        "Resolved labels describe model names; synthetic fixtures provide no independent empirical evidence."
+        "Families are inferred from model names; synthetic fixtures are not independent evidence."
     )
     lines.append("")
     if cross.families:
@@ -258,7 +257,7 @@ def render_report_md(
 ) -> str:
     target = h1.judge.score_label
     lines = [
-        "# Glass Box: MCQ lift vs %s (H1)" % target,
+        "# GlassBox: MCQ lift vs %s" % target,
         "",
         "Readers: " + ", ".join("`%s`" % r for r in book.readers),
         "",
@@ -268,7 +267,7 @@ def render_report_md(
     elif h1.any_reader_simulated:
         lines.extend(
             [
-                "> **Mixed readers.** Some scores come from designed synthetic fixtures.",
+                "> **Mixed readers.** Some scores come from synthetic fixtures.",
                 "",
             ]
         )
@@ -287,7 +286,7 @@ def render_report_md(
             "> **Synthetic judge.** These scores use fixed fixture rules, including when readers are real."
         )
     lines.append(
-        "All components declared deterministic: **%s**."
+        "Declared deterministic: **%s**."
         % ("yes" if h1.deterministic else "no")
     )
     lines.extend(
@@ -370,7 +369,7 @@ def write_run(
 def render_transcript_md(
     result: RepairResult, scenario: Scenario, question: Question
 ) -> str:
-    lines: List[str] = ["# Repair transcript (H4): answer accuracy", ""]
+    lines: List[str] = ["# Repair transcript: answer accuracy", ""]
     lines.append(
         "Scenario `%s` · reader `%s` · question `%s`"
         % (result.scenario_id, result.reader, result.question_id)
@@ -437,9 +436,9 @@ def write_repair(
 
 
 ANCHOR_FIXTURE_CAVEAT = (
-    "> **Fixture anchor set.** The supplied human accuracy values are synthetic test "
-    "data. A human comparison needs measured accuracy on matching questions and "
-    "presentation conditions, with a documented source."
+    "> **Fixture anchor set.** Human accuracy values are synthetic. Measured "
+    "comparisons need matching questions and presentation conditions, with a "
+    "documented source."
 )
 
 
@@ -449,7 +448,7 @@ def _corr(x: float) -> str:
 
 def render_anchor_md(result: AnchorResult) -> str:
     a = result.anchor
-    lines: List[str] = ["# Glass Box: model and human accuracy (H3)", ""]
+    lines: List[str] = ["# GlassBox: model and human accuracy", ""]
     lines.append("Anchor set: `%s`; %s" % (a.id, a.source))
     lines.append("Readers: " + ", ".join("`%s`" % r for r in result.readers))
     lines.append("Condition: readers see the `%s` presentation." % a.condition)
@@ -542,7 +541,7 @@ OPTIMIZE_CAVEAT = (
 def render_optimize_md(
     ev: EvalResult, readers: Sequence[str], training: Optional[Dict[str, Any]] = None
 ) -> str:
-    lines: List[str] = ["# Glass Box: in-sample feature search (M4)", ""]
+    lines: List[str] = ["# GlassBox: in-sample feature search", ""]
     lines.append(
         "Readers scoring the reward: " + ", ".join("`%s`" % r for r in readers)
     )

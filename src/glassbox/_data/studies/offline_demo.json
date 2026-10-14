@@ -1,6 +1,6 @@
 {
   "id": "offline_demo",
-  "description": "Offline H1 demonstration: all scenarios, the three simulated readers, the three interfaces under test.",
+  "description": "Offline study: all scenarios, three simulated readers, and three test interfaces.",
   "readers": ["simulated"],
   "scenarios": null,
   "interfaces": ["cards", "table", "annotated"],

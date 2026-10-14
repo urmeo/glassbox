@@ -58,7 +58,7 @@ def _print_summary(result: StudyResult) -> None:
     if h1.judge.simulated:
         print("judge scores are synthetic")
     print(
-        "H1: %s (mean Spearman = %s)"
+        "Rankings: %s (mean Spearman = %s)"
         % (
             "divergence found" if h1.divergence_found else "no divergence",
             _corr(h1.mean_spearman),
@@ -133,11 +133,11 @@ def cmd_optimize(args: argparse.Namespace) -> int:
         training,
         protected_paths=protected,
     )
-    print("feature selection uses the same scored questions; training is unrun")
+    print("Search and evaluation use the same questions; no model is trained.")
     if any(reader.simulated for reader in readers):
         print("simulated reader answers are fixture outputs")
     print(
-        "generator selected: %s"
+        "selected features: %s"
         % (", ".join(sorted(evaluation.generator_features)) or "(none)")
     )
     print(
@@ -247,7 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_opt.add_argument("--readers", default="simulated")
     p_opt.add_argument("--scenarios", default=None)
     p_opt.add_argument(
-        "--training", default=None, help="training declaration to preflight"
+        "--training", default=None, help="training configuration to validate"
     )
     p_opt.add_argument("--skip-render", action="store_true")
     p_opt.add_argument("--out", default="outputs")

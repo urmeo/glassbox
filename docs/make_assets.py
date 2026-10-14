@@ -1,25 +1,7 @@
-"""Regenerate README figures from the offline study and scenario presentations.
+"""Generate README charts and loan screenshots from the offline demo.
 
-The study uses simulated readers and a simulated preference judge. Run from the
-repository root::
-
-    python3 docs/make_assets.py
-
-Outputs (all committed):
-
-============================  =========================================================
-``img/cards.png``             the three interfaces under test, rendered by the same
-``img/table.png``             HTML the readers screenshot (needs Chrome; skipped with a
-``img/annotated.png``         warning if it is unavailable)
-``img/divergence-*.svg``      preference vs comprehension — the H1 reversal
-``img/accuracy-*.svg``        per-reader accuracy on each interface
-``img/figures.json``          the numbers behind both charts, for citation
-============================  =========================================================
-
-Charts ship as a ``-light`` and a ``-dark`` pair; the README selects between them with
-``<picture>`` so they follow the reader's GitHub theme.
-
-Standard library only, like the rest of the package.
+Run ``python3 docs/make_assets.py`` from the repository root.
+Screenshots require Chrome. Charts use simulated readers and a fixed-rule judge.
 """
 
 from __future__ import annotations
@@ -39,20 +21,16 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 from glassbox import interfaces, render, studies  # noqa: E402
 from glassbox.schema import load_all_scenarios  # noqa: E402
 
-# The scenario shown in the README's figures, and the study behind its numbers.
 FIGURE_SCENARIO = "loans"
 FIGURE_STUDY = "offline_demo"
 
 READER_ORDER = ["simulated:literal", "simulated:diligent", "simulated:careless"]
 VARIANT_ORDER = ["cards", "table", "annotated"]
 
-# Series colours, identical in both themes (they carry meaning, so they must not shift).
-GOOD = "#2ea043"         # comprehension gained
-BAD = "#d1495b"          # comprehension lost
-PREF = "#8957e5"         # preference
-
-
-# --------------------------------------------------------------------------- interfaces
+# Keep series colors consistent across themes.
+GOOD = "#2ea043"
+BAD = "#d1495b"
+PREF = "#8957e5"
 
 
 def render_interfaces() -> bool:
@@ -68,9 +46,6 @@ def render_interfaces() -> bool:
             shutil.copyfile(stimulus.image_path, png)
             print("wrote %s" % os.path.relpath(png, ROOT))
     return True
-
-
-# ------------------------------------------------------------------------------ numbers
 
 
 def measure() -> dict:
@@ -120,11 +95,7 @@ def measure() -> dict:
     }
 
 
-# ------------------------------------------------------------------------------- charts
-
-# GitHub honours <picture> + prefers-color-scheme, so each chart ships as a light and a
-# dark file with explicit colours — no media query inside the SVG, which would follow the
-# operating system rather than the reader's GitHub theme.
+# Separate files let GitHub select the chart for its current theme.
 THEMES = {
     "light": {"text": "#1f2328", "muted": "#59636e", "track": "#d1d9e0", "rule": "#8b949e"},
     "dark": {"text": "#e6edf3", "muted": "#9198a1", "track": "#30363d", "rule": "#6e7681"},
