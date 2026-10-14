@@ -44,7 +44,7 @@ Built-in names work from an installed wheel. Explicit external paths remain supp
 ## Interpretation
 
 - The human-accuracy anchor is synthetic. Its correlations establish no human study result.
-- Optimization searches 32 feature subsets on the reported questions, with a new plain-text baseline per candidate. This is in-sample selection; training is declared and gated, not executed.
+- Optimization searches 32 feature subsets on the reported questions, with a new plain-text baseline per candidate. This is in-sample selection. Training declarations are checked; no trainer is included.
 - Repair adds features for the selected question's field and operation. Derived values and highlights can expose answers; feature restrictions and family exclusions do not prove resistance to answer leakage.
 
 Result metadata records task, prompt and stimulus hashes, reader/provider identity, judge criterion and simulation status. Source hashes and generated-image hashes describe different artifacts.

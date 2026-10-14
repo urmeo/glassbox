@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reject null primary metrics and retry truncated responses or malformed HTTP status lines.
 - Simplify reader selection, choice parsing, arithmetic, ranking, and scoring loops.
 - Fix iterator input handling, numeric overflow, HTTP response errors, and anchor subsets.
 - Validate stimulus modes and direct-call inputs before evaluation.

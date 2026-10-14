@@ -139,8 +139,8 @@ back to the emphasized field. `diligent` also computes derived targets when thei
 are visible. `careless` can select the runner-up for close extrema unless a matching
 highlight is present. These are test fixtures, not fitted models of reader behavior.
 
-The default judge assigns fixed polish weights. Pairwise judging compares interface text
-and aggregates wins over the selected presets. API pairwise judges ask for perceived
+The default judge assigns fixed polish weights. Pairwise results aggregate wins over the
+selected presets. API pairwise judges compare interface text and ask for perceived
 comprehension; their scores do not measure objective question accuracy or human aesthetic
 preference. Ambiguous reader replies count as incorrect; unparseable pairwise replies
 count as ties.
