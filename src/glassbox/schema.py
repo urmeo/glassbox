@@ -141,7 +141,7 @@ def _validate_presentation(
 ) -> None:
     _require(isinstance(pres, dict), "%s: presentation must be an object" % sid)
     metric = pres.get("primary_metric")
-    if metric is not None:
+    if "primary_metric" in pres:
         _require(
             _text(metric) and metric in raw_fields | derived_names,
             "%s: presentation.primary_metric is not a field" % sid,

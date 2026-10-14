@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import http.client
 import json
 import math
 import os
@@ -87,6 +88,8 @@ def post_json(
         except urllib.error.HTTPError as exc:
             try:
                 body = exc.read().decode("utf-8", "replace")
+            except (http.client.HTTPException, OSError):
+                body = "error response body could not be read"
             finally:
                 exc.close()
             for name, value in headers.items():
@@ -98,7 +101,7 @@ def post_json(
                 raise ReaderAPIError(
                     "HTTP %s from %s: %s" % (exc.code, url, body[:500])
                 ) from None
-        except (urllib.error.URLError, OSError) as exc:
+        except (http.client.HTTPException, urllib.error.URLError, OSError) as exc:
             if retries_left == 0:
                 raise ReaderAPIError("request to %s failed: %s" % (url, exc)) from None
         retries_left -= 1

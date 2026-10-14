@@ -56,6 +56,27 @@ class TestSchema(unittest.TestCase):
         with self.assertRaises(schema.SchemaError):
             schema.parse_scenario(raw)
 
+    def test_null_required_presentation_values_rejected(self):
+        for name in ("primary_metric", "primary_extreme", "cards_fields", "detail_fields", "field_display"):
+            raw = copy.deepcopy(BASE)
+            raw["data"]["presentation"] = {name: None}
+            with self.subTest(name=name), self.assertRaisesRegex(schema.SchemaError, name):
+                schema.parse_scenario(raw)
+
+    def test_omitted_primary_metric_uses_default_and_renders(self):
+        from glassbox import interfaces
+
+        for derived, expected in (({}, "x"), ({"total": "x + z"}, "total")):
+            raw = copy.deepcopy(BASE)
+            raw["data"]["derived"] = derived
+            raw["data"]["presentation"] = {"headline_field": None}
+            scenario = schema.parse_scenario(raw)
+            with self.subTest(derived=derived):
+                self.assertEqual(scenario.presentation.primary_metric, expected)
+                presentation = interfaces.variant(scenario, "table")
+                self.assertTrue(all(expected in row for row in presentation.shown.values()))
+                self.assertIn("<table", presentation.to_html())
+
     def test_division_by_zero_derived_reported_not_crashed(self):
         raw = copy.deepcopy(BASE)
         raw["data"]["derived"] = {"ratio": "x / z"}

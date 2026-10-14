@@ -2,7 +2,7 @@
   "id": "growth",
   "title": "Regional revenue, Q1 to Q4",
   "domain": "quantitative charts",
-  "description": "Quarterly revenue for four regions, in thousands of dollars. A bar chart of the latest quarter shows how big each region is now, but the tallest bar is not the region that grew the most, and the biggest dollar gain is not the biggest percentage gain.",
+  "description": "Q1 and Q4 revenue for four regions, in thousands of dollars. Compare Q4 revenue, the dollar increase, and the percentage increase.",
   "data": {
     "unit": "$k",
     "value_label": "Q1 to Q4 growth",

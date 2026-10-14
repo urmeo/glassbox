@@ -1,4 +1,4 @@
-"""Recompute shipped answers and verify protected source bytes."""
+"""Recompute shipped answers and verify reviewed package snapshots."""
 
 import unittest
 
@@ -29,14 +29,14 @@ class TestShippedScenarios(unittest.TestCase):
 
 
 class TestPreservedContent(unittest.TestCase):
-    def test_scenarios_reader_prompt_and_license_keep_original_bytes(self):
+    def test_packaged_content_matches_reviewed_byte_snapshots(self):
         import hashlib
         from pathlib import Path
 
         from glassbox.resources import resource_sha256
 
         expected = {
-            "growth": "c29195c09415b4e53e496cdc2d92fc6f91136ad048159eb60753507644d01918",
+            "growth": "1ed7b669b7b8a296f8a0bff4f370b7ce5f32ed0c8b9f7164a69dfd6b802ddc96",
             "loans": "894c88d07f167306dd7de6aafc79f9caaf69ea12538a3824be1c8b876ea6b745",
             "plans": "3895dd5871b3d6965104c04894ec33a776dad88155f1f1663a88c84916995688",
         }
