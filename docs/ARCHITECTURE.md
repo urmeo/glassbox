@@ -1,9 +1,7 @@
 # GlassBox architecture
 
-GlassBox builds several presentations of the same numeric data, collects multiple-choice
-answers, and compares accuracy with reference conditions. A separate judge ranks the
-interfaces. The [README](../README.md) covers setup and commands; the
-[measurement protocol](PROTOCOL.md) defines how to interpret the results.
+[README](../README.md): setup and commands.
+[Measurement protocol](PROTOCOL.md): metrics and evaluation conditions.
 
 ## Data flow
 
@@ -19,21 +17,16 @@ flowchart LR
     J --> R
 ```
 
-`Presentation` records visible values, item order, labels, emphasis, and highlighting.
-HTML and text rendering use those fields. `Stimulus` adds the input kind, text, optional
-image path, and renderer metadata.
-
-API readers receive the screenshot and question, or interface text when rendering is
-skipped. Simulated readers use the structured presentation fields. Sharing a presentation
-keeps selected values consistent; offline scores do not establish that those values are
-readable in an image.
+`Presentation` supplies visible values, order, labels, emphasis, and highlights to both
+HTML and text rendering. `Stimulus` adds input kind, text, an optional image path, and
+renderer metadata. Readers receive a question with the screenshot, text, or structured
+fields described below. Shared values do not establish image readability.
 
 ## Code and content
 
-The runtime uses Python 3.9+ and the standard library. The wheel includes scenarios,
-prompts, and configuration files under `glassbox/_data/`. Commands using built-in names
-work outside the checkout. SciPy is optional for statistical test comparisons; no model
-training library is used.
+The runtime uses Python 3.9+ and the standard library. No model training library is
+used. Wheels bundle scenarios, prompts, and configurations under `glassbox/_data/`, so
+built-in names work outside the checkout. SciPy optionally cross-checks statistics in tests.
 
 | Path | Responsibility |
 |---|---|
@@ -46,7 +39,7 @@ training library is used.
 | `scripts/verify.sh`, `tests/` | Offline verification and regression tests |
 | `outputs/` | Default location for command results |
 
-Modules under `src/glassbox/` are organized around the evaluation steps:
+Modules in `src/glassbox/`:
 
 | Modules | Responsibility |
 |---|---|
@@ -66,35 +59,32 @@ Modules under `src/glassbox/` are organized around the evaluation steps:
 
 ## Input contracts
 
-A scenario contains `id`, `title`, `domain`, `description`, `data`, and `questions`.
-`data.items` holds labeled numeric records. `data.derived` maps field names to arithmetic
+Scenarios contain `id`, `title`, `domain`, `description`, `data`, and `questions`.
+`data.items` holds labeled numeric records; `data.derived` maps fields to arithmetic
 expressions. Questions specify an operation, choices with machine-readable values, and
-an authored correct choice. See the [loan task](../src/glassbox/_data/scenarios/loans.json)
-for a complete example.
+an authored correct choice. See the [loan task](../src/glassbox/_data/scenarios/loans.json).
 
-Supported operations select a minimum, maximum, or rank, or count values above/below a
-threshold. Derived expressions accept numeric constants, field names, unary signs, and
-`+ - * / // %`. Calls, attributes, indexing, and exponentiation are excluded. Expressions
-use raw item fields rather than chaining derived fields.
+Operations select a minimum, maximum, or rank, or count values above/below a threshold.
+Derived expressions accept numeric constants, raw field names, unary signs, and
+`+ - * / // %`; calls, attributes, indexing, exponentiation, and derived-field chains
+are excluded.
 
-Structure checks enforce typed fields, finite numeric inputs, supported operations,
-unique identifiers, and consistent item choices. Run `glassbox validate` separately to
-recompute answers after changing data. These checks establish consistency with the supplied values and formulas; they
-do not verify external facts or establish that a question measures human understanding.
+Structure checks enforce types, finite numeric inputs, supported operations, unique IDs,
+and consistent item choices. Run `glassbox validate` separately after changing data to
+recompute answers. These checks establish consistency with source values and formulas, not external facts
+or whether questions measure human understanding.
 
-Study configurations select readers, scenarios, interface presets, replicate count,
-judge, and rendering mode. Unknown fields, duplicate selections, malformed reader
-specifications, and invalid boolean or integer settings are rejected before execution.
-JSON configuration loading rejects duplicate keys and nonfinite numbers.
+Studies select readers, scenarios, presets, replicates, judge, and rendering mode.
+Unknown fields, duplicate selections, malformed readers, and invalid boolean/integer
+settings fail before execution. JSON loading rejects duplicate keys and nonfinite numbers.
 
-`resources.py` reads built-in files through `importlib.resources`. A configuration source
-such as `offline_demo` resolves to packaged content. Explicit paths load external files;
-a missing explicit path fails rather than falling back to a packaged file. External
-scenario directories use the same scenario schema through the Python loading functions.
+`resources.py` uses `importlib.resources` for built-in names such as `offline_demo`.
+Explicit paths load external files and fail if missing, without packaged fallback.
+Python loaders apply the same schema to external scenario directories.
 
 ## Presentations and rendering
 
-Named interfaces are feature sets:
+Presets are feature sets.
 
 | Preset | Visible fields and layout |
 |---|---|
@@ -104,57 +94,51 @@ Named interfaces are feature sets:
 | `table` | Detail fields and the computed primary metric |
 | `annotated` | Detail fields and primary metric in sorted cards, with the selected extreme highlighted |
 
-Scenario presentation settings select the primary metric, headline field, detail fields,
-and sorting direction. Optional field display settings supply labels and units for other
-metrics. A question-specific presentation uses that question's field and operation.
-Rank questions can highlight their requested rank; count questions do not highlight an
-individual item.
+Presentation settings select the primary metric, headline and detail fields, and sort
+direction. Optional field display settings supply other metrics' labels and units.
+Question-specific views use the target field and operation: rank questions can highlight
+the requested rank; count questions do not highlight individual items.
 
-If Chrome is unavailable or `--skip-render` is set, API readers use text and simulated
-readers use structured fields. In that mode, the two reference presets expose the same
-values without their different visual layouts. A text run does not evaluate typography,
-spacing, or visual prominence.
+API readers use screenshots, or text when Chrome is unavailable or `--skip-render` is
+set. Simulated readers use structured fields. Without rendering, both reference presets
+expose the same values; typography, spacing, and visual prominence are not evaluated.
 
-Chrome captures use an isolated temporary profile and staged HTML/PNG files. The renderer
-checks capture completion and validates PNG structure, dimensions, compressed rows, and
-checksums before replacing the destination. It records natural exit or confirmed capture
-followed by controlled shutdown. Failed captures preserve an existing destination.
+Chrome uses an isolated temporary profile and staged HTML/PNG files. Capture completion,
+PNG structure, dimensions, compressed rows, and checksums are checked before replacement.
+Metadata records natural exit or confirmed capture followed by controlled shutdown.
+Failed captures preserve existing destinations.
 
-Output checks reject source-tree destinations and planned symlink, hardlink, or input-file
-collisions. Rendering uses fixed viewport and scale settings, but system fonts and color
-scheme can still change pixels across machines. PNG validation establishes a complete
-image file; it does not establish that every field fits in the viewport.
+Output checks reject source-tree destinations, symlinks, hardlinks, and input-file
+collisions. Viewport and scale are fixed; system fonts and color scheme can change pixels
+across machines. A complete PNG does not guarantee that every field fits the viewport.
 
 ## Readers, judges, and provenance
 
 Readers implement `answer(scenario, question, stimulus)` and return an `Answer`. API
-requests contain the visible stimulus, question, and choices rather than the answer key.
-Keys are read from the corresponding provider environment variable at request time.
-The adapters support Anthropic Messages and OpenAI-compatible Chat Completions, including
-OpenRouter routing. Model availability and request-format compatibility require provider
-verification.
+requests contain the visible stimulus, question, and choices, excluding the answer key.
+Provider keys come from environment variables at request time. Adapters support Anthropic
+Messages and OpenAI-compatible Chat Completions, including OpenRouter. Check model
+availability and request-format compatibility with the provider.
 
-The simulated personas use fixed rules. `literal` compares visible target values or falls
-back to the emphasized field. `diligent` also computes derived targets when their inputs
-are visible. `careless` can select the runner-up for close extrema unless a matching
-highlight is present. These are test fixtures, not fitted models of reader behavior.
+Fixed reader fixtures: `literal` compares visible targets or uses the emphasized field;
+`diligent` also computes derived targets from visible inputs; `careless` can choose the
+runner-up for close extrema without a matching highlight. These rules are not fitted
+models of reader behavior.
 
-The default judge assigns fixed polish weights. Pairwise results aggregate wins over the
-selected presets. API pairwise judges compare interface text and ask for perceived
-comprehension; their scores do not measure objective question accuracy or human aesthetic
-preference. Ambiguous reader replies count as incorrect; unparseable pairwise replies
-count as ties.
+The default judge uses fixed polish weights. Pairwise results aggregate wins over selected
+presets. API judges compare text for perceived comprehension, not objective accuracy or
+human aesthetic preference. Ambiguous reader replies count as incorrect; unparseable
+pairwise replies count as ties.
 
-`families.py` records provider and model separately. It resolves known model-name prefixes
-into model families, so the same family can be grouped across providers. Unknown labels
-remain unresolved and do not establish independent families. This heuristic does not
-verify shared training data, model availability, or independence.
+`families.py` records provider and model separately and groups known model-name prefixes
+across providers. Unknown labels remain unresolved. These name heuristics do not verify
+model availability, shared training data, or independence.
 
-Study results retain per-question answers and raw API replies, reader identity, simulation
-status, selected variants, and renderer information. Provenance includes scenario
-snapshots and hashes, packaged prompt hashes, loaded-template hashes, actual reader-prompt
-hashes, stimulus-text hashes, and image hashes when available. These identify different
-inputs and artifacts; a matching hash does not establish scientific validity.
+Results retain per-question answers, raw API replies, reader identity, simulation status,
+variants, and renderer information. Provenance includes scenario snapshots and hashes, packaged
+prompt hashes, loaded-template hashes, actual reader-prompt hashes, stimulus-text hashes,
+and image hashes when available. These identify distinct inputs and artifacts, not scientific
+validity.
 
 ## Metrics and optional workflows
 
@@ -163,49 +147,44 @@ baseline accuracy. `ceiling_gap` subtracts raw-data accuracy. The historical `ce
 field is the raw reference's accuracy, not an upper bound or an arithmetic-skill control.
 Missing cells and undefined correlations remain undefined in reports.
 
-Replicates support repeated answers, accuracy spread, and answer stability. Ranking
-analysis reports judge/accuracy reversals, Spearman correlations, and model-family
-agreement. A reversal in every family may involve different pairs of interfaces; common
-pairs are reported separately. See [PROTOCOL.md](PROTOCOL.md) for the measurement rules.
+Replicates show accuracy spread and answer stability. Analysis reports judge/accuracy
+reversals, Spearman correlations, and model-family agreement. Families may reverse different
+interface pairs; common pairs are reported separately. See [PROTOCOL.md](PROTOCOL.md).
 
-The offline reader accuracies below describe the fixed rules on the nine shipped
-questions:
+Fixture accuracy on the nine shipped questions:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="img/accuracy-dark.svg">
   <img alt="Simulated reader accuracy on cards, table, and annotated interfaces. Literal: 0%, 89%, 89%. Diligent: 0%, 100%, 100%. Careless: 11%, 89%, 100%." src="img/accuracy-light.svg" width="100%">
 </picture>
 
-Repair starts with cards for the selected question. After an error, it adds the target
-metric and inputs, then sorting or a question-appropriate highlight. It stops on a correct
-answer, the turn limit, or no remaining change. `turns_to_understanding` records the first
-correct turn, with the initial view at zero; it does not measure retained understanding.
+Repair starts with cards for one question. After an error, it adds the target metric and
+inputs, then sorting or a question-appropriate highlight. It stops on a correct answer, the turn limit,
+or no remaining change. `turns_to_understanding` is the first correct turn (initial view
+zero), not retained understanding.
 
-Anchoring asks only the declared questions under the selected condition, pools answers
-over readers and replicates, and compares that accuracy with supplied human values.
-The shipped anchor is synthetic. A real comparison needs a documented source and matching
-questions and presentation conditions; setting `is_fixture` to `false` verifies neither.
+Anchoring asks declared questions under the selected condition and pools accuracy over
+readers and replicates for comparison with supplied human values. The shipped anchor is
+synthetic. Real comparisons need a documented source and matching questions and presentation
+conditions; `is_fixture` set to `false` verifies neither.
 
-Search enumerates the 32 subsets of five generator features, or a supplied feature pool.
-Each candidate and the fixed cards comparison receives a fresh plain-text baseline.
-Selection and evaluation use the same scenarios and readers, with no held-out evaluation.
-The `fresh_per_candidate_and_cards` metadata records that sampling protocol; stochastic
-readers can produce different baselines between candidates.
+Search enumerates 32 subsets of five generator features, or a supplied pool. Each candidate
+and the cards comparison gets a fresh plain-text baseline. Selection and evaluation use the same
+scenarios and readers, without held-out evaluation. `fresh_per_candidate_and_cards` records
+this protocol; stochastic baselines may differ between candidates.
 
-Training declarations check supported method names, reward, the declared generator/base
-model family, and reader-family exclusions. They do not run SFT or GRPO. An empty error
-list does not verify model or framework availability, and family exclusions do not prove
-resistance to answer leakage.
+Training declarations check method names, reward, generator and base model families, and reader
+family exclusions. They do not run SFT or GRPO or verify model or framework availability; passing
+family checks does not prove resistance to answer leakage.
 
 ## Verification and extension
 
-Run `bash scripts/verify.sh` from the checkout. It runs the unit suite with warnings treated
-as errors, validates source answers, and checks offline study and repair outputs in a
-temporary directory. Provider requests are mocked in tests. Optional browser contrast
-checks need configured Node/Puppeteer and Chrome; SciPy comparisons run only when installed.
+`bash scripts/verify.sh` runs unit tests with warnings as errors, validates source answers,
+and checks offline study and repair outputs in a temporary directory. Run it from the checkout.
+Provider requests are mocked. Optional browser contrast checks need configured
+Node/Puppeteer and Chrome; SciPy comparisons require SciPy to be installed.
 
-Add scenarios under the packaged data directory and run `validate`. Add reader adapters
-through the registry with request/reply tests. New presentation flags need build/render
-behavior and, if applicable, explicit additions to the search pool or repair policy.
-New judges should state their criterion and input modality in metadata. Keep fixture
-behavior and empirical measurements distinguishable in generated reports.
+Add scenarios to packaged data and run `validate`. Register reader adapters with
+request/reply tests. New presentation flags need build/render behavior and explicit
+search-pool or repair-policy additions where applicable. Judge metadata should state the
+criterion and modality. Label fixture and empirical results distinctly.
