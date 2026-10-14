@@ -1,76 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1120" viewBox="0 0 1280 1120" role="img" aria-labelledby="pipeline-title pipeline-desc">
-<title id="pipeline-title">GlassBox pipeline: interface layouts to measured answers</title>
-<desc id="pipeline-desc">Load scenario values, questions, and study settings. Build a raw-data table and plain-text baseline plus cards, table, and annotated views. Run glassbox validate separately to recompute answer keys before evaluation. Simulated readers use structured visible fields; API readers use screenshots or text. Score choices against stored keys, calculate accuracy and lift over the plain-text baseline, and retain raw-table accuracy as a reference. A separate judge uses fixed feature ratings or API text comparisons of the test views. Compare judge and accuracy rankings, then write Markdown and JSON results with answers, metrics, and provenance hashes. Optional repair, feature search, and human-accuracy comparison run their own evaluations using the same tasks and readers. The shipped demonstration uses synthetic data, simulated readers, and a simulated judge.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="840" viewBox="0 0 1440 840" role="img" aria-labelledby="pipeline-title pipeline-desc">
+<title id="pipeline-title">GlassBox pipeline</title>
+<desc id="pipeline-desc">Read the main study from left to right. Scenario data, multiple-choice questions, and study settings feed four steps: build interface views, collect reader answers, score answer accuracy and lift, and compare rankings before saving report.md and results.json. Default views are the raw table and plain-text reference layouts plus cards, table, and annotated test layouts. Simulated readers use structured presentation fields; API readers use screenshots or interface text. Accuracy compares choices with stored answer keys, and lift subtracts plain-text baseline accuracy. A separate judge rates only the test views using fixed feature ratings or API text comparisons. Its scores join answer accuracy only at the ranking comparison. Validation, repair, feature search, and comparison with supplied human accuracy are separate commands, not stages of the study. The shipped offline demo uses three synthetic scenarios, nine questions, simulated readers, and a simulated judge. Shipped human accuracy values are also synthetic.</desc>
 <defs>
-<marker id="main-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#55c4e0"/></marker>
-<marker id="judge-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#bb9af7"/></marker>
+<marker id="main-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#55c4e0"/></marker>
+<marker id="judge-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 Z" fill="#bb9af7"/></marker>
 </defs>
-<rect x="0" y="0" width="1280" height="1120" rx="8" fill="#14191c" stroke="#14191c" stroke-width="1.5"/>
-<text x="48" y="62" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="600" fill="#e7eded">GLASSBOX PIPELINE</text>
-<text x="48" y="92" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="400" fill="#a8b5bd">Compare answer accuracy across interface layouts</text>
-<path d="M48 112H1232" stroke="#a8b5bd" stroke-width="1.5"/>
-<rect x="24" y="132" width="1232" height="724" rx="8" fill="#1b2327" stroke="#303b41" stroke-width="1.5"/>
-<text x="48" y="164" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#e7eded">01  PREPARE THE STUDY</text>
-<text x="920" y="164" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600" fill="#f08b79">SEPARATE CHECK</text>
-<rect x="48" y="188" width="296" height="124" rx="8" fill="#1b2327" stroke="#cad4d9" stroke-width="1.5"/>
-<text x="72" y="225" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Study inputs</text>
-<text x="72" y="260" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Scenario values + questions</text>
-<text x="72" y="288" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Readers, repeats and judge</text>
-<rect x="392" y="188" width="480" height="124" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
-<text x="416" y="225" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Build five interface views</text>
-<text x="416" y="260" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">References: raw table + plain text</text>
-<text x="416" y="288" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Test views: cards · table · annotated</text>
-<rect x="920" y="188" width="312" height="124" rx="8" fill="#1b2327" stroke="#f08b79" stroke-width="1.5" stroke-dasharray="6 5"/>
-<text x="944" y="225" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="600" fill="#e7eded">Verify answer keys</text>
-<text x="944" y="260" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Recompute from source values</text>
-<text x="944" y="288" font-family="IBM Plex Mono, Courier New, monospace" font-size="19" font-weight="400" fill="#f08b79">glassbox validate</text>
-<path d="M346 250H382" fill="none" stroke="#55c4e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
-<path d="M632 314V344H220V404" fill="none" stroke="#55c4e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
-<path d="M874 250H896V506H910" fill="none" stroke="#bb9af7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#judge-arrow)"/>
-<text x="48" y="382" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#e7eded">02  READERS</text>
-<text x="920" y="382" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#bb9af7">INDEPENDENT JUDGE</text>
-<rect x="48" y="414" width="344" height="184" rx="8" fill="#1b2327" stroke="#cad4d9" stroke-width="1.5"/>
-<text x="72" y="451" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Collect reader answers</text>
-<text x="72" y="490" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Simulated: structured fields</text>
-<text x="72" y="520" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">API models: PNG or text</text>
-<text x="72" y="552" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Answer each question</text>
-<text x="72" y="578" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Repeat when configured</text>
-<rect x="440" y="414" width="432" height="184" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
-<text x="464" y="451" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Score the answers</text>
-<text x="464" y="490" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Compare choices with stored keys</text>
-<text x="464" y="520" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Accuracy + lift over plain text</text>
-<text x="464" y="552" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Raw-table accuracy as reference</text>
-<path d="M394 506H430" fill="none" stroke="#55c4e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
-<rect x="920" y="414" width="312" height="184" rx="8" fill="#1b2327" stroke="#bb9af7" stroke-width="1.5"/>
-<text x="944" y="451" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Score test views</text>
-<text x="944" y="490" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Fixed feature ratings</text>
-<text x="944" y="520" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">or API text comparisons</text>
-<text x="944" y="560" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#bb9af7">Separate from accuracy</text>
-<path d="M656 600V624H532V684" fill="none" stroke="#55c4e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
-<path d="M1076 600V650H532" fill="none" stroke="#bb9af7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#judge-arrow)"/>
-<text x="48" y="666" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#e7eded">03  COMPARE AND SAVE</text>
-<rect x="48" y="694" width="568" height="134" rx="8" fill="#1b2327" stroke="#cad4d9" stroke-width="1.5"/>
-<text x="72" y="731" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Compare interface rankings</text>
-<text x="72" y="770" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Find higher judge scores with lower accuracy</text>
-<text x="72" y="800" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Compare resolved model-family rankings</text>
-<rect x="664" y="694" width="568" height="134" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
-<text x="688" y="731" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Write results you can inspect</text>
-<text x="688" y="770" font-family="IBM Plex Mono, Courier New, monospace" font-size="22" font-weight="400" fill="#55c4e0">report.md + results.json</text>
-<text x="688" y="800" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">Answers · metrics · settings · hashes</text>
-<path d="M618 761H654" fill="none" stroke="#55c4e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
-<text x="48" y="898" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" fill="#e7eded">OTHER COMMANDS</text>
-<text x="270" y="898" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Separate runs using the same tasks and readers</text>
-<rect x="48" y="922" width="360" height="130" rx="8" fill="#1b2327" stroke="#303b41" stroke-width="1.5"/>
-<text x="72" y="958" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Repair one question</text>
-<text x="72" y="995" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Add fields or highlights, then retry</text>
-<text x="72" y="1025" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="400" fill="#a8b5bd">Stop on a correct answer or limit</text>
-<rect x="440" y="922" width="360" height="130" rx="8" fill="#1b2327" stroke="#303b41" stroke-width="1.5"/>
-<text x="464" y="958" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" fill="#e7eded">Search feature sets</text>
-<text x="464" y="995" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="400" fill="#a8b5bd">32 feature sets by default</text>
-<text x="464" y="1025" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="400" fill="#a8b5bd">Same questions; no model training</text>
-<rect x="832" y="922" width="400" height="130" rx="8" fill="#1b2327" stroke="#303b41" stroke-width="1.5"/>
-<text x="856" y="958" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="600" fill="#e7eded">Compare with human accuracy</text>
-<text x="856" y="995" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Correlate supplied per-item scores</text>
-<text x="856" y="1025" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="400" fill="#a8b5bd">Shipped human scores are synthetic</text>
-<text x="48" y="1093" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="400" fill="#a8b5bd">Defaults shown: 3 synthetic tasks · 9 questions · simulated readers and judge.</text>
+<rect x="0" y="0" width="1440" height="840" rx="8" fill="#14191c" stroke="#14191c" stroke-width="1.5"/>
+<text x="48" y="62" font-family="Arial, sans-serif" font-size="34" font-weight="600" fill="#e7eded">GlassBox pipeline</text>
+<text x="48" y="100" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#a8b5bd">Compare interface ratings with answer accuracy</text>
+<path d="M48 130H1392" stroke="#303b41" stroke-width="1.5"/>
+<text x="48" y="177" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#55c4e0">INPUT</text>
+<text x="130" y="177" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#a8b5bd">Scenario data + questions + study settings</text>
+<path d="M204 190V206" fill="none" stroke="#55c4e0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
+<rect x="48" y="216" width="312" height="232" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
+<text x="72" y="262" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#e7eded">1  Build views</text>
+<rect x="392" y="216" width="312" height="232" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
+<text x="416" y="262" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#e7eded">2  Collect answers</text>
+<rect x="736" y="216" width="312" height="232" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
+<text x="760" y="262" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#e7eded">3  Score answers</text>
+<rect x="1080" y="216" width="312" height="232" rx="8" fill="#1b2327" stroke="#55c4e0" stroke-width="1.5"/>
+<text x="1104" y="262" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#e7eded">4  Compare &amp; save</text>
+<text x="72" y="305" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#a8b5bd">REFERENCES</text>
+<text x="72" y="335" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#e7eded">Raw table · plain text</text>
+<text x="72" y="383" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#a8b5bd">DEFAULT TEST VIEWS</text>
+<text x="72" y="413" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#e7eded">Cards · table · annotated</text>
+<text x="416" y="320" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#a8b5bd">Simulated: structured fields</text>
+<text x="416" y="356" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#a8b5bd">API: screenshot or text</text>
+<text x="760" y="316" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#a8b5bd">Choices vs. stored keys</text>
+<text x="760" y="356" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#a8b5bd">Answer accuracy</text>
+<text x="760" y="396" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#a8b5bd">Lift vs. plain-text baseline</text>
+<text x="1104" y="320" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#a8b5bd">Accuracy rank vs. judge rank</text>
+<text x="1104" y="376" font-family="Courier New, monospace" font-size="23" font-weight="400" fill="#55c4e0">report.md</text>
+<text x="1104" y="412" font-family="Courier New, monospace" font-size="23" font-weight="400" fill="#55c4e0">results.json</text>
+<path d="M362 332H382" fill="none" stroke="#55c4e0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
+<path d="M706 332H726" fill="none" stroke="#55c4e0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
+<path d="M1050 332H1070" fill="none" stroke="#55c4e0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#main-arrow)"/>
+<path d="M204 450V592H462" fill="none" stroke="#bb9af7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#judge-arrow)"/>
+<text x="236" y="575" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#bb9af7">Test views only</text>
+<rect x="472" y="520" width="496" height="128" rx="8" fill="#1b2327" stroke="#bb9af7" stroke-width="1.5"/>
+<text x="496" y="560" font-family="Arial, sans-serif" font-size="26" font-weight="600" fill="#e7eded">Separate judge</text>
+<text x="496" y="594" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#bb9af7">Rate the test views</text>
+<text x="496" y="628" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#a8b5bd">Fixed ratings or API text comparisons</text>
+<path d="M970 592H1236V458" fill="none" stroke="#bb9af7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#judge-arrow)"/>
+<text x="1000" y="575" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#bb9af7">Judge scores</text>
+<path d="M48 684H1392" stroke="#303b41" stroke-width="1.5"/>
+<text x="48" y="721" font-family="Arial, sans-serif" font-size="21" font-weight="600" fill="#e7eded">Separate commands</text>
+<text x="48" y="759" font-family="Courier New, monospace" font-size="22" font-weight="400" fill="#e7eded">validate</text>
+<text x="48" y="789" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Check answer keys</text>
+<text x="392" y="759" font-family="Courier New, monospace" font-size="22" font-weight="400" fill="#e7eded">repair</text>
+<text x="392" y="789" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Retry a question with view changes</text>
+<text x="736" y="759" font-family="Courier New, monospace" font-size="22" font-weight="400" fill="#e7eded">optimize</text>
+<text x="736" y="789" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Search feature sets</text>
+<text x="1080" y="759" font-family="Courier New, monospace" font-size="22" font-weight="400" fill="#e7eded">anchor</text>
+<text x="1080" y="789" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#a8b5bd">Compare supplied human accuracy</text>
+<text x="48" y="826" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#a8b5bd">Offline demo: 3 synthetic scenarios · 9 questions · simulated readers and judge. Shipped human scores are synthetic.</text>
 </svg>
