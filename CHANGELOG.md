@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve numeric display precision and use field names when display labels are omitted.
+- Copy presentations before rendering and when constructing stimuli.
+- Respect provider cooldowns and add backoff within the HTTP retry budget.
 - Compare pairwise views in both orders and retain invalid, abstained, and genuine tie outcomes.
 - Report accepted-judgment coverage; leave missing judge scores and ranks undefined.
 - Freeze selected features and evaluate them on scenarios disjoint by ID, task content, and source data.

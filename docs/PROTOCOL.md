@@ -24,6 +24,11 @@ contrasts advertised and computed totals; scoring uses computed cost.
 Raw-data accuracy is a separate diagnostic, not a normalization or control for lift.
 Missing cells and undefined correlations remain undefined.
 
+Displayed numbers preserve their stored numeric values. Numeric display validation checks the
+values a condition shows; it does not require intentionally hidden fields to be present.
+Missing display labels use the normal field name. Stimuli copy their source presentation,
+so later changes to the caller's containers do not change recorded structured input.
+
 Judge metadata is separate from reader metadata. The default uses fixed polish weights;
 the [pairwise prompt](../src/glassbox/_data/prompts/judge_pairwise.txt) asks for perceived
 comprehension from text, not screenshots or aesthetic preference. Tournaments compare

@@ -18,9 +18,11 @@ flowchart LR
 ```
 
 `Presentation` supplies visible values, order, labels, emphasis, and highlights to both
-HTML and text rendering. `Stimulus` adds input kind, text, an optional image path, and
-renderer metadata. Readers receive a question with the screenshot, text, or structured
-fields described below. Shared values do not establish image readability.
+HTML and text rendering. Rendering copies the presentation before generating either form.
+`Stimulus` stores its own presentation copy, input kind, text, optional image path, and
+renderer metadata. Changes to the caller's original containers cannot alter that snapshot.
+Readers receive a question with the screenshot, text, or structured fields described below.
+Shared values do not establish image readability.
 
 ## Code and content
 
@@ -99,6 +101,11 @@ direction. Optional field display settings supply other metrics' labels and unit
 Question-specific views use the target field and operation: rank questions can highlight
 the requested rank; count questions do not highlight individual items.
 
+Numeric formatting preserves the stored value instead of rounding to two decimal places.
+Visible numeric tokens are checked before rendering; fields deliberately omitted by a
+condition remain omitted. Missing or blank display labels fall back to the field's normal
+name in both HTML and text.
+
 API readers use screenshots, or text when Chrome is unavailable or `--skip-render` is
 set. Simulated readers use structured fields. Without rendering, both reference presets
 expose the same values; typography, spacing, and visual prominence are not evaluated.
@@ -119,6 +126,14 @@ requests contain the visible stimulus, question, and choices, excluding the answ
 Provider keys come from environment variables at request time. Adapters support Anthropic
 Messages and OpenAI-compatible Chat Completions, including OpenRouter. Check model
 availability and request-format compatibility with the provider.
+
+HTTP attempts and retry waits share the `timeout` budget (90 seconds by default).
+Backoff starts at one second and doubles up to 30 seconds.
+[`Retry-After`](https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after) accepts seconds
+or an HTTP date and can lengthen the wait. A cooldown above 30 seconds or one that would
+use up the remaining budget stops the request. Socket operations use the remaining budget, and the
+deadline is checked after reads; a slowly streamed body may outlast the budget until the
+read returns.
 
 Fixed reader fixtures: `literal` compares visible targets or uses the emphasized field;
 `diligent` also computes derived targets from visible inputs; `careless` can choose the
