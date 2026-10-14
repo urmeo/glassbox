@@ -1,4 +1,4 @@
-"""Rendering: skip-render degradation and clean RenderError on Chrome failure."""
+"""Text rendering, PNG validation, and browser failures."""
 
 import os
 import tempfile

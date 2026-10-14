@@ -1,4 +1,4 @@
-"""H3 anchoring; anchor sets, model-vs-human correlation, fixture honesty."""
+"""Anchor configuration and correlations using synthetic human accuracy."""
 
 import copy
 import os

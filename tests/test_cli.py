@@ -1,4 +1,4 @@
-"""CLI; the offline end-to-end path that scripts/verify.sh exercises."""
+"""Offline CLI commands."""
 
 import json
 import os

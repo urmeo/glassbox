@@ -1,4 +1,4 @@
-"""Study configs; load, validate, and run a reproducible H1 study offline."""
+"""Study configuration validation and offline execution."""
 
 import json
 import os

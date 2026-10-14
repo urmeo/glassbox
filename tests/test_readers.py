@@ -1,4 +1,4 @@
-"""Simulated readers; deterministic behavior and the H1 fixture properties."""
+"""Deterministic reader fixtures and expected answer accuracy."""
 
 import unittest
 
@@ -47,7 +47,7 @@ class TestDeterminism(unittest.TestCase):
 
 
 class TestCarelessSlip(unittest.TestCase):
-    """The careless persona's defining behavior: slip on a close call, rescued by a highlight."""
+    """The careless fixture selects a close runner-up unless the extreme is highlighted."""
 
     def setUp(self):
         self.loans = schema.load_all_scenarios()["loans"]

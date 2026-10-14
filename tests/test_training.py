@@ -1,4 +1,4 @@
-"""M4 training configs; declared, validated, gated (never run)."""
+"""Training configuration validation; no training is run."""
 
 import copy
 import unittest

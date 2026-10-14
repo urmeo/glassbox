@@ -1,4 +1,4 @@
-"""The recompute engine: safe arithmetic, compute ops, and answer recomputation."""
+"""Restricted arithmetic and answer-key recomputation."""
 
 import unittest
 

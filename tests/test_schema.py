@@ -1,4 +1,4 @@
-"""Schema: structural validation, including the guards added at the M1 gate."""
+"""Scenario structure, numeric fields, and presentation settings."""
 
 import copy
 import unittest
