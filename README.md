@@ -3,7 +3,7 @@
 GlassBox renders the same numeric data in different layouts and scores multiple-choice
 answers against scenario keys. A separate judge ranks the interfaces.
 
-![GlassBox pipeline: scenario data to interface views, reader answers, accuracy and independent judge scores, ranking comparison, and saved results. Repair, search, and human-accuracy comparison run separately.](docs/img/pipeline.svg)
+![GlassBox pipeline: scenario data to interface views, reader answers, accuracy and independent judge scores, ranking comparison, and saved results. Repair, feature selection, frozen evaluation, and human-accuracy comparison run separately.](docs/img/pipeline.svg)
 
 The core uses Python 3.9+ and the standard library. Chrome is optional for screenshots.
 
@@ -64,8 +64,15 @@ use the offline study. SciPy is optional in tests for statistical cross-checks.
 glassbox run --readers simulated --skip-render --judge pairwise --out outputs/pairwise
 glassbox repair --scenario loans --reader simulated:literal --skip-render --out outputs/repair
 glassbox anchor --set fixture --skip-render --out outputs/anchor
-glassbox optimize --readers simulated --skip-render --out outputs/search
+glassbox optimize --readers simulated --scenarios loans,plans --skip-render --out outputs/selection
+glassbox evaluate --selection outputs/selection/selection.json --scenarios growth --out outputs/evaluation
 ```
+
+`optimize` writes in-sample reports and `selection.json`; another search needs a new output
+directory. `evaluate` requires `--scenarios` and scores frozen features without search.
+Readers and rendering default to the saved selection unless overridden. Overlap guards
+reject recorded scenario IDs, task content, and source data; they do not verify earlier
+exposure outside the saved selection set.
 
 Use `glassbox <command> --help` for options. Live readers use `anthropic:<model>`,
 `openai:<model>`, or `openrouter:<model-slug>` with the corresponding `ANTHROPIC_API_KEY`,
@@ -75,9 +82,12 @@ availability with the provider. Live calls need network access and may incur cha
 Set `GLASSBOX_CHROME` to the Chrome executable outside its default macOS location.
 `--skip-render` uses structured values for simulated readers and text for API readers.
 Text runs do not evaluate visual layout. The default judge remains simulated even
-with live readers; API pairwise judges compare interface text, not screenshots.
+with live readers; API pairwise judges compare interface text, not screenshots. Pairwise
+judges compare both orders. Invalid replies and abstentions receive no credit; scores use
+accepted comparisons only, with coverage reported. Missing scores and ranks are undefined.
 
-Search selects and evaluates on the same questions. Human anchor values are synthetic.
+Search selects and scores features on the same questions. Frozen evaluation on the shipped
+synthetic data is a pilot, not proof of generalization. Human anchor values are synthetic.
 Training plans are unrun; no trainer is included. Live providers and human validation
 remain unevaluated.
 
