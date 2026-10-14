@@ -54,7 +54,7 @@ Modules in `src/glassbox/`:
 | `prompts.py`, `answer_parsing.py` | Prompt templates and conservative option-letter parsing |
 | `scoring.py`, `studies.py` | Collect repeated answers, calculate metrics, and execute saved studies |
 | `judge.py`, `analysis.py` | Independent judge scores, ranking reversals, and correlations |
-| `repair.py`, `anchor.py`, `reward.py`, `training.py` | Question-specific repair, human accuracy comparison, feature search, and training checks |
+| `repair.py`, `anchor.py`, `reward.py`, `selection.py`, `training.py` | Repair, human accuracy comparison, feature search, frozen selections, and training checks |
 | `report.py`, `cli.py`, `__main__.py` | Markdown/JSON outputs and command-line entry points |
 
 ## Input contracts
@@ -125,16 +125,23 @@ Fixed reader fixtures: `literal` compares visible targets or uses the emphasized
 runner-up for close extrema without a matching highlight. These rules are not fitted
 models of reader behavior.
 
-The default judge uses fixed polish weights. Pairwise results aggregate wins over selected
-presets. API judges compare text for perceived comprehension, not objective accuracy or
-human aesthetic preference. Ambiguous reader replies count as incorrect; unparseable
-pairwise replies count as ties.
+The default judge uses fixed polish weights. Pairwise judges compare both orders of each
+selected pair: six comparisons for three views. API judges compare text for perceived
+comprehension, not objective accuracy or human aesthetic preference. Ambiguous reader
+replies count as incorrect. Invalid judge replies and abstentions are excluded without
+credit; genuine custom-judge ties receive half a point. No accepted judgments means an
+undefined pairwise score and rank. Rates are conditional on accepted comparisons, so per-view
+coverage is reported.
+
+`meta.judge.evidence` in `results.json` retains per-scenario comparison order, outcomes,
+raw replies, and prompt hashes. `valid_count` includes genuine ties; `tie_count` is its
+subset. Invalid and abstained counts remain separate.
 
 `families.py` records provider and model separately and groups known model-name prefixes
 across providers. Unknown labels remain unresolved. These name heuristics do not verify
 model availability, shared training data, or independence.
 
-Results retain per-question answers, raw API replies, reader identity, simulation status,
+Study results retain per-question answers, raw API replies, reader identity, simulation status,
 variants, and renderer information. Provenance includes scenario snapshots and hashes, packaged
 prompt hashes, loaded-template hashes, actual reader-prompt hashes, stimulus-text hashes,
 and image hashes when available. These identify distinct inputs and artifacts, not scientific
@@ -149,7 +156,9 @@ Missing cells and undefined correlations remain undefined in reports.
 
 Replicates show accuracy spread and answer stability. Analysis reports judge/accuracy
 reversals, Spearman correlations, and model-family agreement. Families may reverse different
-interface pairs; common pairs are reported separately. See [PROTOCOL.md](PROTOCOL.md).
+interface pairs; common pairs are reported separately. Ranks omit nonfinite scores; correlations use finite
+paired observations. Cross-family preference requires finite scores in every selected scenario.
+See [PROTOCOL.md](PROTOCOL.md).
 
 Fixture accuracy on the nine shipped questions:
 
@@ -169,9 +178,22 @@ synthetic. Real comparisons need a documented source and matching questions and 
 conditions; `is_fixture` set to `false` verifies neither.
 
 Search enumerates 32 subsets of five generator features, or a supplied pool. Each candidate
-and the cards comparison gets a fresh plain-text baseline. Selection and evaluation use the same
-scenarios and readers, without held-out evaluation. `fresh_per_candidate_and_cards` records
-this protocol; stochastic baselines may differ between candidates.
+and the cards comparison gets a fresh plain-text baseline. Its reported selection scores
+use the same scenarios and readers. `fresh_per_candidate_and_cards` records this protocol;
+stochastic baselines may differ between candidates.
+
+`optimize` also creates `selection.json`, storing frozen features, selection scenarios,
+reader settings, rendering mode, protocol identifiers, and hashes. Creation is exclusive: use a new
+output directory for another search. `evaluate --selection ... --scenarios ...` applies
+those features without search; explicit scenarios are required. Reader/render settings
+are inherited unless overridden. Evaluation writes `evaluation.md` and `evaluation.json`,
+shares one baseline between selected and cards views per scenario, and weights scenarios
+equally.
+
+Evaluation rejects overlap by scenario ID, task fingerprint, or source-data fingerprint.
+Disjointness covers the recorded selection set, not external prior access or arbitrary
+semantic copies. Results using the shipped fixtures remain a synthetic pilot, not evidence
+of generalization.
 
 Training declarations check method names, reward, generator and base model families, and reader
 family exclusions. They do not run SFT or GRPO or verify model or framework availability; passing
@@ -180,7 +202,8 @@ family checks does not prove resistance to answer leakage.
 ## Verification and extension
 
 `bash scripts/verify.sh` runs unit tests with warnings as errors, validates source answers,
-and checks offline study and repair outputs in a temporary directory. Run it from the checkout.
+and checks offline study, repair, selection, and evaluation outputs in a temporary directory.
+Run it from the checkout.
 Provider requests are mocked. Optional browser contrast checks need configured
 Node/Puppeteer and Chrome; SciPy comparisons require SciPy to be installed.
 

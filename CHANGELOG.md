@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Compare pairwise views in both orders and retain invalid, abstained, and genuine tie outcomes.
+- Report accepted-judgment coverage; leave missing judge scores and ranks undefined.
+- Freeze selected features and evaluate them on scenarios disjoint by ID, task content, and source data.
 - Reject null primary metrics and retry truncated responses or malformed HTTP status lines.
 - Simplify reader selection, choice parsing, arithmetic, ranking, and scoring loops.
 - Fix iterator input handling, numeric overflow, HTTP response errors, and anchor subsets.
