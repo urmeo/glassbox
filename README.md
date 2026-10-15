@@ -3,7 +3,10 @@
 GlassBox renders the same numeric data in different layouts and scores multiple-choice
 answers against scenario keys. A separate judge ranks the interfaces.
 
-![GlassBox pipeline: scenario data to interface views, reader answers, accuracy and independent judge scores, ranking comparison, and saved results. Repair, feature selection, frozen evaluation, and human-accuracy comparison run separately.](docs/img/pipeline.svg)
+![GlassBox pipeline: build views, capture input, collect and score answers, then compare rankings and save results. An independent judge scores test views. Separate commands freeze feature selections and evaluate disjoint scenarios; validation, repair, and human comparison are also separate.](docs/img/pipeline.svg)
+
+[Edit in Figma](https://www.figma.com/board/0Hzi29Tu1WkqLkY0tkT6nQ/GlassBox-pipeline?node-id=4-65) ·
+[Diagram sources](docs/figma/README.md)
 
 The core uses Python 3.9+ and the standard library. Chrome is optional for screenshots.
 
@@ -56,7 +59,8 @@ the inputs and computed cost; annotated cards sort by cost and highlight its min
 ![Loan cards sorted by computed cost, with Offer B highlighted.](docs/img/annotated.png)
 
 Run `python3 docs/make_assets.py` to regenerate the figures. PNGs need Chrome; charts
-use the offline study. SciPy is optional in tests for statistical cross-checks.
+use the offline study. Run `python3 docs/make_pipeline.py` to rebuild the pipeline SVG
+without a browser. SciPy is optional in tests for statistical cross-checks.
 
 ## Other commands
 
