@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph Study["Study"]
+    direction LR
+    D["Numeric records, formulas, questions, answer keys and settings"] --> V["1 Build views: raw table / plain text; cards / table / annotated"]
+    V --> S["2 Capture input: check display precision, copy presentation, text and optional PNG, input hashes"]
+    S --> R["3 Collect answers: simulated shown fields or API PNG / text; question and choices"]
+    R --> A["4 Score answers: stored keys, accuracy, lift vs. plain text, raw-table accuracy check"]
+    A --> O["5 Compare judge and lift ranks; save report.md / results.json"]
+    V -->|"Test views only"| J["Separate judge: simulated feature scores or API text judgments; pairwise uses both orders and excludes invalid / abstained replies"]
+    J -->|"Judge scores and coverage"| O
+  end
+  subgraph Frozen["Frozen feature evaluation — separate commands"]
+    direction LR
+    F["optimize: search selection scenarios; report in-sample lift"] --> K["selection.json: freeze features, readers, settings and task hashes"]
+    K --> E["evaluate: score frozen features on disjoint scenarios; no new search"]
+    E --> H["evaluation.md / evaluation.json: accuracy and lift vs. baseline"]
+    G["Overlap check: reject reused IDs, task content and source data"] -.-> E
+  end
+  C["validate: recompute source answer keys"]
+  P["repair: revise one question's view"]
+  N["anchor: compare supplied human accuracy"]
+  L["Offline demo: 3 synthetic scenarios, 9 questions, simulated readers and judge. Text runs do not test visual layout. Shipped human scores are synthetic; held-out fixtures do not establish generalization."]
+  classDef study fill:#1b2327,stroke:#4ebbd7,color:#e0e7e9,stroke-width:2px
+  classDef support fill:#1b2327,stroke:#aab6bc,color:#e0e7e9,stroke-width:2px
+  classDef check fill:#1b2327,stroke:#e18b7e,color:#e0e7e9,stroke-width:2px,stroke-dasharray:6 4
+  class D,V,S,R,A,O study
+  class J,F,K,E,H,P,N,L support
+  class C,G check
