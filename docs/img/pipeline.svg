@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1180" viewBox="0 0 1680 1180" role="img" aria-labelledby="pipeline-title pipeline-desc">
+  <title id="pipeline-title">GlassBox pipeline</title>
+  <desc id="pipeline-desc">GlassBox study: numeric records, formulas, questions and settings feed reference and test views. Input capture checks numeric precision and copies the presentation. Rule-based readers use the recorded presentation; screenshots are optional outputs. Answers are scored against authored keys and the plain-text baseline. A separate judge scores test views using fixed feature scores or both pairwise presentation orders. Judge scores join answer scores only for rank comparison and saved Markdown/YAML results. Separate optimize and evaluate commands freeze a feature selection before scoring disjoint recorded scenarios without another search. Validation, repair and human accuracy comparison are separate commands. The offline demo and human scores are synthetic; text runs do not evaluate visual layout.</desc>
+  <defs>
+    <marker id="cyan-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#4ebbd7" />
+    </marker>
+    <marker id="gray-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M1 1 L9 5 L1 9 Z" fill="#aab6bc" />
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1680" height="1180" rx="8" fill="#14191c" stroke="#14191c" stroke-width="2" />
+  <text x="48" y="62" fill="#e0e7e9" font-size="32" font-family="Arial, sans-serif" font-weight="700">GLASSBOX PIPELINE</text>
+  <path d="M48 126 H1632" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="20" y="144" width="1640" height="1016" rx="8" fill="#1b2327" stroke="#344046" stroke-width="2" />
+  <text x="48" y="184" fill="#4ebbd7" font-size="17" font-family="Arial, sans-serif" font-weight="700">INPUT</text>
+  <text x="122" y="184" fill="#a2afb6" font-size="22" font-family="Arial, sans-serif" font-weight="400">Numeric records + formulas · questions + answer keys · study settings</text>
+  <rect x="48" y="218" width="280" height="224" rx="8" fill="#1b2327" stroke="#4ebbd7" stroke-width="2" />
+  <text x="70" y="258" fill="#e0e7e9" font-size="25" font-family="Arial, sans-serif" font-weight="700">1  Build views</text>
+  <rect x="374" y="218" width="280" height="224" rx="8" fill="#1b2327" stroke="#4ebbd7" stroke-width="2" />
+  <text x="396" y="258" fill="#e0e7e9" font-size="25" font-family="Arial, sans-serif" font-weight="700">2  Capture input</text>
+  <rect x="700" y="218" width="280" height="224" rx="8" fill="#1b2327" stroke="#4ebbd7" stroke-width="2" />
+  <text x="722" y="258" fill="#e0e7e9" font-size="25" font-family="Arial, sans-serif" font-weight="700">3  Collect answers</text>
+  <rect x="1026" y="218" width="280" height="224" rx="8" fill="#1b2327" stroke="#4ebbd7" stroke-width="2" />
+  <text x="1048" y="258" fill="#e0e7e9" font-size="25" font-family="Arial, sans-serif" font-weight="700">4  Score answers</text>
+  <rect x="1352" y="218" width="280" height="224" rx="8" fill="#1b2327" stroke="#4ebbd7" stroke-width="2" />
+  <text x="1374" y="258" fill="#e0e7e9" font-size="25" font-family="Arial, sans-serif" font-weight="700">5  Compare &amp; save</text>
+  <path d="M332 330 H364" fill="none" stroke="#4ebbd7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#cyan-arrow)" />
+  <path d="M658 330 H690" fill="none" stroke="#4ebbd7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#cyan-arrow)" />
+  <path d="M984 330 H1016" fill="none" stroke="#4ebbd7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#cyan-arrow)" />
+  <path d="M1310 330 H1342" fill="none" stroke="#4ebbd7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#cyan-arrow)" />
+  <text x="70" y="296" fill="#a2afb6" font-size="14" font-family="Arial, sans-serif" font-weight="700">REFERENCES</text>
+  <text x="70" y="324" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="400">Raw table · plain text</text>
+  <text x="70" y="366" fill="#a2afb6" font-size="14" font-family="Arial, sans-serif" font-weight="700">DEFAULT TEST VIEWS</text>
+  <text x="70" y="394" fill="#e0e7e9" font-size="18" font-family="Arial, sans-serif" font-weight="400">Cards · table · annotated</text>
+  <text x="396" y="300" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="400">Check numeric display</text>
+  <text x="396" y="336" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="400">Copy the presentation</text>
+  <text x="396" y="372" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="400">Text + optional PNG</text>
+  <text x="396" y="414" fill="#4ebbd7" font-size="18" font-family="Courier New, monospace" font-weight="400">Keep input hashes</text>
+  <text x="722" y="300" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="400">Question + choices</text>
+  <text x="722" y="336" fill="#a2afb6" font-size="19" font-family="Arial, sans-serif" font-weight="400">Read shown numeric fields</text>
+  <text x="722" y="372" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Local reader rules</text>
+  <text x="722" y="414" fill="#a2afb6" font-size="18" font-family="Arial, sans-serif" font-weight="400">Repeat as configured</text>
+  <text x="1048" y="300" fill="#e0e7e9" font-size="19" font-family="Arial, sans-serif" font-weight="400">Choices vs. stored keys</text>
+  <text x="1048" y="340" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Answer accuracy</text>
+  <text x="1048" y="378" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Lift vs. plain text</text>
+  <text x="1048" y="414" fill="#a2afb6" font-size="17" font-family="Arial, sans-serif" font-weight="400">Raw-table accuracy check</text>
+  <text x="1374" y="300" fill="#e0e7e9" font-size="19" font-family="Arial, sans-serif" font-weight="400">Judge rank vs. lift rank</text>
+  <text x="1374" y="338" fill="#a2afb6" font-size="18" font-family="Arial, sans-serif" font-weight="400">Reversals + correlations</text>
+  <text x="1374" y="382" fill="#4ebbd7" font-size="22" font-family="Courier New, monospace" font-weight="400">report.md</text>
+  <text x="1374" y="418" fill="#4ebbd7" font-size="22" font-family="Courier New, monospace" font-weight="400">results.yaml</text>
+  <path d="M188 446 V574 H442" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#gray-arrow)" />
+  <text x="220" y="554" fill="#aab6bc" font-size="20" font-family="Arial, sans-serif" font-weight="400">Test views only</text>
+  <rect x="456" y="496" width="670" height="160" rx="8" fill="#1b2327" stroke="#aab6bc" stroke-width="2" />
+  <text x="480" y="536" fill="#e0e7e9" font-size="27" font-family="Arial, sans-serif" font-weight="700">Separate judge</text>
+  <text x="480" y="574" fill="#a2afb6" font-size="21" font-family="Arial, sans-serif" font-weight="400">Fixed feature scores or pairwise comparisons</text>
+  <text x="480" y="610" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Pairwise: compare both presentation orders</text>
+  <text x="480" y="640" fill="#aab6bc" font-size="18" font-family="Arial, sans-serif" font-weight="400">Three test views → six comparisons</text>
+  <path d="M1130 574 H1492 V452" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#gray-arrow)" />
+  <text x="1178" y="554" fill="#aab6bc" font-size="20" font-family="Arial, sans-serif" font-weight="400">Judge scores + coverage</text>
+  <path d="M48 696 H1632" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="48" y="734" fill="#e0e7e9" font-size="20" font-family="Arial, sans-serif" font-weight="700">FROZEN FEATURE EVALUATION</text>
+  <text x="425" y="734" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Separate commands · selection scores remain in sample</text>
+  <rect x="48" y="768" width="360" height="174" rx="8" fill="#1b2327" stroke="#aab6bc" stroke-width="2" />
+  <rect x="456" y="768" width="360" height="174" rx="8" fill="#1b2327" stroke="#aab6bc" stroke-width="2" />
+  <rect x="864" y="768" width="360" height="174" rx="8" fill="#1b2327" stroke="#aab6bc" stroke-width="2" />
+  <rect x="1272" y="768" width="360" height="174" rx="8" fill="#1b2327" stroke="#aab6bc" stroke-width="2" />
+  <path d="M412 854 H446" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#gray-arrow)" />
+  <path d="M820 854 H854" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#gray-arrow)" />
+  <path d="M1228 854 H1262" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#gray-arrow)" />
+  <text x="70" y="810" fill="#e0e7e9" font-size="26" font-family="Courier New, monospace" font-weight="700">optimize</text>
+  <text x="70" y="850" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Search feature subsets</text>
+  <text x="70" y="884" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Use selection scenarios</text>
+  <text x="70" y="918" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Report in-sample lift</text>
+  <text x="478" y="810" fill="#e0e7e9" font-size="26" font-family="Courier New, monospace" font-weight="700">selection.yaml</text>
+  <text x="478" y="850" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Freeze chosen features</text>
+  <text x="478" y="884" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Save readers + settings</text>
+  <text x="478" y="918" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Record task hashes</text>
+  <text x="886" y="810" fill="#e0e7e9" font-size="26" font-family="Courier New, monospace" font-weight="700">evaluate</text>
+  <text x="886" y="850" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Score frozen features</text>
+  <text x="886" y="884" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Use disjoint scenarios</text>
+  <text x="886" y="918" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">No new search</text>
+  <text x="1294" y="810" fill="#e0e7e9" font-size="26" font-family="Arial, sans-serif" font-weight="700">Evaluation outputs</text>
+  <text x="1294" y="848" fill="#4ebbd7" font-size="21" font-family="Courier New, monospace" font-weight="400">evaluation.md</text>
+  <text x="1294" y="880" fill="#4ebbd7" font-size="21" font-family="Courier New, monospace" font-weight="400">evaluation.yaml</text>
+  <text x="1294" y="916" fill="#a2afb6" font-size="19" font-family="Arial, sans-serif" font-weight="400">Accuracy + lift vs. baseline</text>
+  <text x="48" y="980" fill="#e18b7e" font-size="16" font-family="Arial, sans-serif" font-weight="700">OVERLAP CHECK</text>
+  <text x="210" y="980" fill="#e18b7e" font-size="21" font-family="Arial, sans-serif" font-weight="400">Reject reused scenario IDs, task content and source data before evaluation</text>
+  <path d="M48 1012 H1632" fill="none" stroke="#aab6bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="48" y="1048" fill="#e18b7e" font-size="23" font-family="Courier New, monospace" font-weight="400">validate</text>
+  <text x="48" y="1078" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Recompute source answer keys</text>
+  <text x="592" y="1048" fill="#e0e7e9" font-size="23" font-family="Courier New, monospace" font-weight="400">repair</text>
+  <text x="592" y="1078" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Revise one question’s view</text>
+  <text x="1136" y="1048" fill="#e0e7e9" font-size="23" font-family="Courier New, monospace" font-weight="400">anchor</text>
+  <text x="1136" y="1078" fill="#a2afb6" font-size="20" font-family="Arial, sans-serif" font-weight="400">Compare supplied human accuracy</text>
+  <text x="48" y="1120" fill="#a2afb6" font-size="19" font-family="Arial, sans-serif" font-weight="400">Offline demo: 3 synthetic scenarios · 9 questions · simulated readers and judge.</text>
+  <text x="48" y="1148" fill="#a2afb6" font-size="18" font-family="Arial, sans-serif" font-weight="400">Text runs do not test visual layout. Shipped human scores are synthetic; held-out fixtures do not establish generalization.</text>
+</svg>

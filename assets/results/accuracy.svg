@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="864pt" height="388.8pt" viewBox="0 0 864 388.8" version="1.1" role="img" aria-labelledby="accuracy-title accuracy-description">
+ <title id="accuracy-title">Fixture checks: correct answers</title><desc id="accuracy-description">Plain text and raw data: 17/27; cards: 1/27; table: 25/27; annotated: 26/27.</desc><metadata>
+  <rdf:RDF>
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 388.8  L 864 388.8  L 864 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 172.8 291.6  L 682.56 291.6  L 682.56 104.976  L 172.8 104.976  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 172.8 291.6  L 172.8 104.976  " clip-path="url(#p9044586dd6)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_2" />
+     <g id="text_1">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="172.8" y="310.718125" transform="rotate(-0 172.8 310.718125)">0%</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 300.24 291.6  L 300.24 104.976  " clip-path="url(#p9044586dd6)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_4" />
+     <g id="text_2">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="300.24" y="310.718125" transform="rotate(-0 300.24 310.718125)">25%</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 427.68 291.6  L 427.68 104.976  " clip-path="url(#p9044586dd6)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_6" />
+     <g id="text_3">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="427.68" y="310.718125" transform="rotate(-0 427.68 310.718125)">50%</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 555.12 291.6  L 555.12 104.976  " clip-path="url(#p9044586dd6)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_8" />
+     <g id="text_4">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="555.12" y="310.718125" transform="rotate(-0 555.12 310.718125)">75%</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 682.56 291.6  L 682.56 104.976  " clip-path="url(#p9044586dd6)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_10" />
+     <g id="text_5">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="682.56" y="310.718125" transform="rotate(-0 682.56 310.718125)">100%</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="427.68" y="335.331875" transform="rotate(-0 427.68 335.331875)">Correct answers</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_11" />
+     <g id="text_7">
+      <text style="fill: #142b40; font: 12.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="162.8" y="128.62554" transform="rotate(-0 162.8 128.62554)">Plain text</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_12" />
+     <g id="text_8">
+      <text style="fill: #142b40; font: 12.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="162.8" y="165.831282" transform="rotate(-0 162.8 165.831282)">Cards</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_13" />
+     <g id="text_9">
+      <text style="fill: #142b40; font: 12.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="162.8" y="203.037023" transform="rotate(-0 162.8 203.037023)">Table</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_14" />
+     <g id="text_10">
+      <text style="fill: #142b40; font: 12.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="162.8" y="240.242765" transform="rotate(-0 162.8 240.242765)">Annotated</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_15" />
+     <g id="text_11">
+      <text style="fill: #142b40; font: 12.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="162.8" y="277.448507" transform="rotate(-0 162.8 277.448507)">Raw data</text>
+     </g>
+    </g>
+   </g>
+   <g id="accuracy-baseline">
+    <path d="M 172.8 113.458909  L 493.76 113.458909  L 493.76 134.294124  L 172.8 134.294124  z " clip-path="url(#p9044586dd6)" style="fill: #758599" />
+   </g>
+   <g id="accuracy-cards">
+    <path d="M 172.8 150.664651  L 191.68 150.664651  L 191.68 171.499866  L 172.8 171.499866  z " clip-path="url(#p9044586dd6)" style="fill: #bd4938" />
+   </g>
+   <g id="accuracy-table">
+    <path d="M 172.8 187.870392  L 644.8 187.870392  L 644.8 208.705608  L 172.8 208.705608  z " clip-path="url(#p9044586dd6)" style="fill: #286ba2" />
+   </g>
+   <g id="accuracy-annotated">
+    <path d="M 172.8 225.076134  L 663.68 225.076134  L 663.68 245.911349  L 172.8 245.911349  z " clip-path="url(#p9044586dd6)" style="fill: #087d80" />
+   </g>
+   <g id="accuracy-raw">
+    <path d="M 172.8 262.281876  L 493.76 262.281876  L 493.76 283.117091  L 172.8 283.117091  z " clip-path="url(#p9044586dd6)" style="fill: #a0adbc" />
+   </g>
+   <g id="text_12">
+    <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="702.9504" y="127.187767" transform="rotate(-0 702.9504 127.187767)">63.0%   17/27</text>
+   </g>
+   <g id="text_13">
+    <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="702.9504" y="164.393508" transform="rotate(-0 702.9504 164.393508)">3.7%   1/27</text>
+   </g>
+   <g id="text_14">
+    <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="702.9504" y="201.59925" transform="rotate(-0 702.9504 201.59925)">92.6%   25/27</text>
+   </g>
+   <g id="text_15">
+    <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="702.9504" y="238.804992" transform="rotate(-0 702.9504 238.804992)">96.3%   26/27</text>
+   </g>
+   <g id="text_16">
+    <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="702.9504" y="276.010733" transform="rotate(-0 702.9504 276.010733)">63.0%   17/27</text>
+   </g>
+  </g>
+  <g id="text_17">
+   <text style="fill: #142b40; font: 700 22px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="50.542163" transform="rotate(-0 60.48 50.542163)">Fixture checks: correct answers</text>
+  </g>
+  <g id="text_18">
+   <text style="fill: #536578; font: 11.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="79.111003" transform="rotate(-0 60.48 79.111003)">9 questions × 3 rule-based readers = 27 answers per input condition</text>
+  </g>
+  <g id="text_19">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="368.405119" transform="rotate(-0 60.48 368.405119)">Rule-based fixtures · structured input (--skip-render) · no human or live-model measurements.</text>
+  </g>
+  <g id="text_20">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="351.686719" transform="rotate(-0 60.48 351.686719)">Raw data is a diagnostic, not an upper bound.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p9044586dd6">
+   <rect x="172.8" y="104.976" width="509.76" height="186.624" />
+  </clipPath>
+ </defs>
+</svg>

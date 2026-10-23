@@ -1,0 +1,546 @@
+format: glassbox.result_figures.v1
+protocol:
+  study: offline_demo
+  readers:
+  - simulated:literal
+  - simulated:diligent
+  - simulated:careless
+  scenarios:
+  - growth
+  - loans
+  - plans
+  questions: 9
+  replicates: 1
+  skip_render: true
+  reader_type: deterministic rule-based fixtures
+  judge: polish
+  judge_protocol: fixed_polish_weights.v1
+  judge_target: synthetic_polish
+  judge_score_is_vote_rate: false
+  aggregation: Equal scenario and reader weights; three questions per scenario.
+  scenario_sha256:
+    growth: 6068b5d07dcf9cabb90523f5f08969237d14997a08f3ebb6e703fa930c490c6c
+    loans: ba0d22522a86b6621f85233db26f6fbdf57fa9c163b674ab20ddc89e62768f4d
+    plans: 5a133890bbd8d0270fbfc9d92f0997fab64a0da7a947a492caf73d3e88d59b20
+  implementation_sha256:
+    __main__.py: e2d22b7143f1631ee6142bf5d0a5ea968a0a65e7531cd919cc143408018394b0
+    core.py: 26a3bedf268bd2e23f62f8aa8dd8417b66bba645c14ca62fc8f087892b0939cd
+    evaluation.py: 0f47f70c40cbb0c408d51c3d364c068c6d4af66fd42d2ae203c808dea1e8b106
+study:
+  answers: 135
+  condition_order:
+  - baseline
+  - cards
+  - table
+  - annotated
+  - raw
+  by_condition:
+    baseline:
+      correct: 17
+      total: 27
+      accuracy: 0.6296296296296297
+      lift: 0.0
+    cards:
+      correct: 1
+      total: 27
+      accuracy: 0.037037037037037035
+      lift: -0.5925925925925926
+    table:
+      correct: 25
+      total: 27
+      accuracy: 0.9259259259259259
+      lift: 0.2962962962962963
+    annotated:
+      correct: 26
+      total: 27
+      accuracy: 0.9629629629629629
+      lift: 0.3333333333333333
+    raw:
+      correct: 17
+      total: 27
+      accuracy: 0.6296296296296297
+      lift: 0.0
+  by_scenario:
+    growth:
+      baseline:
+        correct: 6
+        total: 9
+        accuracy: 0.6666666666666666
+      cards:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+      table:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      annotated:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      raw:
+        correct: 6
+        total: 9
+        accuracy: 0.6666666666666666
+    loans:
+      baseline:
+        correct: 5
+        total: 9
+        accuracy: 0.5555555555555556
+      cards:
+        correct: 1
+        total: 9
+        accuracy: 0.1111111111111111
+      table:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      annotated:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      raw:
+        correct: 5
+        total: 9
+        accuracy: 0.5555555555555556
+    plans:
+      baseline:
+        correct: 6
+        total: 9
+        accuracy: 0.6666666666666666
+      cards:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+      table:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      annotated:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      raw:
+        correct: 6
+        total: 9
+        accuracy: 0.6666666666666666
+  by_reader:
+    simulated:literal:
+      baseline:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+      cards:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+      table:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      annotated:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      raw:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+    simulated:diligent:
+      baseline:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      cards:
+        correct: 0
+        total: 9
+        accuracy: 0.0
+      table:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      annotated:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      raw:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+    simulated:careless:
+      baseline:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      cards:
+        correct: 1
+        total: 9
+        accuracy: 0.1111111111111111
+      table:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+      annotated:
+        correct: 9
+        total: 9
+        accuracy: 1.0
+      raw:
+        correct: 8
+        total: 9
+        accuracy: 0.8888888888888888
+  judge_scores:
+    cards: 0.6199999999999999
+    table: 0.29
+    annotated: 0.7599999999999999
+  mean_within_scenario_spearman: 0.16666666666666663
+  within_scenario_spearman:
+    growth: 0.0
+    loans: 0.4999999999999999
+    plans: 0.0
+feature_search:
+  selection_scenarios:
+  - loans
+  - plans
+  evaluation_scenarios:
+  - growth
+  feature_pool:
+  - detail
+  - derived
+  - highlight
+  - sorted
+  - polished
+  candidates:
+  - features:
+    - derived
+    - highlight
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - detail
+    - highlight
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - highlight
+    - sorted
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - highlight
+    - polished
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - detail
+    - highlight
+    - sorted
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - detail
+    - highlight
+    - polished
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - highlight
+    - polished
+    - sorted
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    - detail
+    - highlight
+    - polished
+    - sorted
+    lift: 0.38888888888888895
+  - features:
+    - derived
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - detail
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - sorted
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - polished
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - detail
+    - sorted
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - detail
+    - polished
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - polished
+    - sorted
+    lift: 0.33333333333333337
+  - features:
+    - derived
+    - detail
+    - polished
+    - sorted
+    lift: 0.33333333333333337
+  - features:
+    - detail
+    - highlight
+    lift: 0.16666666666666674
+  - features:
+    - detail
+    - highlight
+    - sorted
+    lift: 0.16666666666666674
+  - features:
+    - detail
+    - highlight
+    - polished
+    lift: 0.16666666666666674
+  - features:
+    - detail
+    - highlight
+    - polished
+    - sorted
+    lift: 0.16666666666666674
+  - features:
+    - detail
+    lift: 0.11111111111111116
+  - features:
+    - detail
+    - sorted
+    lift: 0.11111111111111116
+  - features:
+    - detail
+    - polished
+    lift: 0.11111111111111116
+  - features:
+    - detail
+    - polished
+    - sorted
+    lift: 0.11111111111111116
+  - features: []
+    lift: -0.27777777777777773
+  - features:
+    - highlight
+    lift: -0.27777777777777773
+  - features:
+    - sorted
+    lift: -0.27777777777777773
+  - features:
+    - polished
+    lift: -0.27777777777777773
+  - features:
+    - highlight
+    - sorted
+    lift: -0.27777777777777773
+  - features:
+    - highlight
+    - polished
+    lift: -0.27777777777777773
+  - features:
+    - polished
+    - sorted
+    lift: -0.27777777777777773
+  - features:
+    - highlight
+    - polished
+    - sorted
+    lift: -0.27777777777777773
+  candidate_count: 32
+  tied_best_count: 8
+  selected_features:
+  - derived
+  - highlight
+  tie_break: First candidate in stable exhaustive-search order.
+  selection_sha256: 9338581495864aea42db65298b9bb10ce3fac02c00442b502ab92af5a4384158
+  selection_baseline_sampling: fresh_per_candidate_and_cards
+  evaluation_baseline_sampling: shared_per_scenario
+  selection:
+    selected:
+      correct: 18
+      total: 18
+      accuracy: 1.0
+      lift: 0.38888888888888884
+    baseline:
+      correct: 11
+      total: 18
+      accuracy: 0.6111111111111112
+    cards:
+      correct: 1
+      total: 18
+      accuracy: 0.05555555555555555
+      lift: -0.5555555555555556
+  evaluation:
+    selected:
+      correct: 6
+      total: 9
+      accuracy: 0.6666666666666666
+      lift: 0.0
+    baseline:
+      correct: 6
+      total: 9
+      accuracy: 0.6666666666666666
+    cards:
+      correct: 0
+      total: 9
+      accuracy: 0.0
+      lift: -0.6666666666666666
+  limitation: One separate synthetic scenario; not evidence of generalization.
+repair:
+  start_variant: cards
+  question_targeted: true
+  max_repairs: 4
+  case_count: 27
+  cumulative_first_correct:
+  - repairs: 0
+    correct: 1
+    total: 27
+  - repairs: 1
+    correct: 27
+    total: 27
+  cases:
+  - scenario: growth
+    question: biggest_dollar_gain
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: biggest_percent_gain
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: count_gain_over_50
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: biggest_dollar_gain
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: biggest_percent_gain
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: count_gain_over_50
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: biggest_dollar_gain
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: biggest_percent_gain
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: growth
+    question: count_gain_over_50
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: cheapest_total
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: count_over_11k
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: second_cheapest
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: cheapest_total
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: count_over_11k
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: second_cheapest
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: cheapest_total
+    reader: simulated:careless
+    first_correct_turn: 0
+    observed_turns: 1
+  - scenario: loans
+    question: count_over_11k
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: loans
+    question: second_cheapest
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: cheapest_2yr
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: count_over_1500
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: most_expensive_2yr
+    reader: simulated:literal
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: cheapest_2yr
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: count_over_1500
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: most_expensive_2yr
+    reader: simulated:diligent
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: cheapest_2yr
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: count_over_1500
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  - scenario: plans
+    question: most_expensive_2yr
+    reader: simulated:careless
+    first_correct_turn: 1
+    observed_turns: 2
+  stop_rule: Stop at the first correct answer.
+  limitation: First correctness only; retention is not measured.

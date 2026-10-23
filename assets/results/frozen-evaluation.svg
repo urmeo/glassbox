@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="439.2pt" viewBox="0 0 864 439.2" version="1.1" role="img" aria-labelledby="frozen-evaluation-title frozen-evaluation-description">
+ <title id="frozen-evaluation-title">Feature selection on synthetic scenarios</title><desc id="frozen-evaluation-description">Selected derived and highlight features: 18/18 correct on loans and plans, versus 11/18 plain text; 6/9 correct on Growth, equal to plain text. Eight of 32 subsets tie for best.</desc><metadata>
+  <rdf:RDF>
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 439.2  L 864 439.2  L 864 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 120.96 294.264  L 414.72 294.264  L 414.72 158.112  L 120.96 158.112  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 155.52 294.264  L 155.52 158.112  " clip-path="url(#p73843517db)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_2" />
+     <g id="text_1">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="155.52" y="313.382125" transform="rotate(-0 155.52 313.382125)">−80</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 224.64 294.264  L 224.64 158.112  " clip-path="url(#p73843517db)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_4" />
+     <g id="text_2">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="224.64" y="313.382125" transform="rotate(-0 224.64 313.382125)">−40</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 293.76 294.264  L 293.76 158.112  " clip-path="url(#p73843517db)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_6" />
+     <g id="text_3">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="293.76" y="313.382125" transform="rotate(-0 293.76 313.382125)">0</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 362.88 294.264  L 362.88 158.112  " clip-path="url(#p73843517db)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_8" />
+     <g id="text_4">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="362.88" y="313.382125" transform="rotate(-0 362.88 313.382125)">+40</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_9" />
+     <g id="text_5">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="110.96" y="202.382062" transform="rotate(-0 110.96 202.382062)">Selected</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_10" />
+     <g id="text_6">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="110.96" y="259.112062" transform="rotate(-0 110.96 259.112062)">Cards</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 293.76 183.0732  L 360.96 183.0732  L 360.96 212.5728  L 293.76 212.5728  z " clip-path="url(#p73843517db)" style="fill: #087d80" />
+   </g>
+   <g id="patch_4">
+    <path d="M 293.76 239.8032  L 197.76 239.8032  L 197.76 269.3028  L 293.76 269.3028  z " clip-path="url(#p73843517db)" style="fill: #bd4938" />
+   </g>
+   <g id="line2d_11">
+    <path d="M 293.76 294.264  L 293.76 158.112  " clip-path="url(#p73843517db)" style="fill: none; stroke: #142b40; stroke-linecap: square" />
+   </g>
+   <g id="text_7">
+    <text style="fill: #087d80; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="366.144" y="201.13425" transform="rotate(-0 366.144 201.13425)">+38.9 pp</text>
+   </g>
+   <g id="text_8">
+    <text style="fill: #bd4938; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="192.576" y="257.86425" transform="rotate(-0 192.576 257.86425)">-55.6 pp</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_5">
+    <path d="M 509.76 294.264  L 803.52 294.264  L 803.52 158.112  L 509.76 158.112  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_3">
+    <g id="xtick_5">
+     <g id="line2d_12">
+      <path d="M 544.32 294.264  L 544.32 158.112  " clip-path="url(#paf85d302c5)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_13" />
+     <g id="text_9">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="544.32" y="313.382125" transform="rotate(-0 544.32 313.382125)">−80</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_14">
+      <path d="M 613.44 294.264  L 613.44 158.112  " clip-path="url(#paf85d302c5)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_15" />
+     <g id="text_10">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="613.44" y="313.382125" transform="rotate(-0 613.44 313.382125)">−40</text>
+     </g>
+    </g>
+    <g id="xtick_7">
+     <g id="line2d_16">
+      <path d="M 682.56 294.264  L 682.56 158.112  " clip-path="url(#paf85d302c5)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_17" />
+     <g id="text_11">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="682.56" y="313.382125" transform="rotate(-0 682.56 313.382125)">0</text>
+     </g>
+    </g>
+    <g id="xtick_8">
+     <g id="line2d_18">
+      <path d="M 751.68 294.264  L 751.68 158.112  " clip-path="url(#paf85d302c5)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_19" />
+     <g id="text_12">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="751.68" y="313.382125" transform="rotate(-0 751.68 313.382125)">+40</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_4">
+    <g id="ytick_3">
+     <g id="line2d_20" />
+     <g id="text_13">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="499.76" y="202.382062" transform="rotate(-0 499.76 202.382062)">Selected</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_21" />
+     <g id="text_14">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="499.76" y="259.112062" transform="rotate(-0 499.76 259.112062)">Cards</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_6">
+    <path d="M 682.56 183.0732  L 682.56 183.0732  L 682.56 212.5728  L 682.56 212.5728  z " clip-path="url(#paf85d302c5)" style="fill: #087d80" />
+   </g>
+   <g id="patch_7">
+    <path d="M 682.56 239.8032  L 567.36 239.8032  L 567.36 269.3028  L 682.56 269.3028  z " clip-path="url(#paf85d302c5)" style="fill: #bd4938" />
+   </g>
+   <g id="line2d_22">
+    <path d="M 682.56 294.264  L 682.56 158.112  " clip-path="url(#paf85d302c5)" style="fill: none; stroke: #142b40; stroke-linecap: square" />
+   </g>
+   <g id="text_15">
+    <text style="fill: #087d80; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="687.744" y="201.13425" transform="rotate(-0 687.744 201.13425)">0.0 pp</text>
+   </g>
+   <g id="text_16">
+    <text style="fill: #bd4938; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="562.176" y="257.86425" transform="rotate(-0 562.176 257.86425)">-66.7 pp</text>
+   </g>
+   <g id="PathCollection_1">
+    <defs>
+     <path id="me227172d18" d="M 0 8.062258  L 0 -8.062258  " style="stroke: #087d80; stroke-width: 3" />
+    </defs>
+    <g clip-path="url(#paf85d302c5)">
+     <use xlink:href="#me227172d18" x="682.56" y="197.823" style="fill: #087d80; stroke: #087d80; stroke-width: 3" />
+    </g>
+   </g>
+  </g>
+  <g id="text_17">
+   <text style="fill: #142b40; font: 700 22px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="54.926963" transform="rotate(-0 60.48 54.926963)">Feature selection on synthetic scenarios</text>
+  </g>
+  <g id="text_18">
+   <text style="fill: #536578; font: 11.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="88.233403" transform="rotate(-0 60.48 88.233403)">The selected features are fixed before evaluation on the separate Growth scenario</text>
+  </g>
+  <g id="text_19">
+   <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="120.96" y="124.7328" transform="rotate(-0 120.96 124.7328)">SELECTION SET</text>
+  </g>
+  <g id="text_20">
+   <text style="fill: #536578; font: 10.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="120.96" y="143.6184" transform="rotate(-0 120.96 143.6184)">Loans + Plans · 18 cases per view</text>
+  </g>
+  <g id="text_21">
+   <text style="fill: #536578; font: 9.7px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="267.84" y="333.792" transform="rotate(-0 267.84 333.792)">selected 18/18 · plain text 11/18 · cards 1/18</text>
+  </g>
+  <g id="text_22">
+   <text style="fill: #142b40; font: 700 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="509.76" y="124.7328" transform="rotate(-0 509.76 124.7328)">FROZEN EVALUATION</text>
+  </g>
+  <g id="text_23">
+   <text style="fill: #536578; font: 10.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="509.76" y="143.6184" transform="rotate(-0 509.76 143.6184)">Growth · 9 cases per view</text>
+  </g>
+  <g id="text_24">
+   <text style="fill: #536578; font: 9.7px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="656.64" y="333.792" transform="rotate(-0 656.64 333.792)">selected 6/9 · plain text 6/9 · cards 0/9</text>
+  </g>
+  <g id="text_25">
+   <text style="fill: #536578; font: 11.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="466.56" y="360.144" transform="rotate(-0 466.56 360.144)">Accuracy lift over plain text (percentage points)</text>
+  </g>
+  <g id="text_26">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="416.436319" transform="rotate(-0 60.48 416.436319)">Rule-based readers; one separate synthetic scenario. These results do not establish generalization.</text>
+  </g>
+  <g id="text_27">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="397.550719" transform="rotate(-0 60.48 397.550719)">32 feature subsets · 8 tied best · first selected: derived + highlight.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p73843517db">
+   <rect x="120.96" y="158.112" width="293.76" height="136.152" />
+  </clipPath>
+  <clipPath id="paf85d302c5">
+   <rect x="509.76" y="158.112" width="293.76" height="136.152" />
+  </clipPath>
+ </defs>
+</svg>

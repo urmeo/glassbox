@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="410.4pt" viewBox="0 0 864 410.4" version="1.1" role="img" aria-labelledby="judge-accuracy-title judge-accuracy-description">
+ <title id="judge-accuracy-title">Fixed judge score versus fixture accuracy</title><desc id="judge-accuracy-description">Cards score 0.62 with 1/27 correct; table scores 0.29 with 25/27; annotated scores 0.76 with 26/27. Scores are not preference-vote rates.</desc><metadata>
+  <rdf:RDF>
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 410.4  L 864 410.4  L 864 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 103.68 307.8  L 794.88 307.8  L 794.88 110.808  L 103.68 110.808  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 103.68 307.8  L 103.68 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_2" />
+     <g id="text_1">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="103.68" y="326.918125" transform="rotate(-0 103.68 326.918125)">0.0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 241.92 307.8  L 241.92 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_4" />
+     <g id="text_2">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="241.92" y="326.918125" transform="rotate(-0 241.92 326.918125)">0.2</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 380.16 307.8  L 380.16 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_6" />
+     <g id="text_3">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="380.16" y="326.918125" transform="rotate(-0 380.16 326.918125)">0.4</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 518.4 307.8  L 518.4 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_8" />
+     <g id="text_4">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="518.4" y="326.918125" transform="rotate(-0 518.4 326.918125)">0.6</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 656.64 307.8  L 656.64 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_10" />
+     <g id="text_5">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="656.64" y="326.918125" transform="rotate(-0 656.64 326.918125)">0.8</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <path d="M 794.88 307.8  L 794.88 110.808  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_12" />
+     <g id="text_6">
+      <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="794.88" y="326.918125" transform="rotate(-0 794.88 326.918125)">1.0</text>
+     </g>
+    </g>
+    <g id="text_7">
+     <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="449.28" y="350.531875" transform="rotate(-0 449.28 350.531875)">Judge score (fixed formula, 0–1)</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_13">
+      <path d="M 103.68 307.8  L 794.88 307.8  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_14" />
+     <g id="text_8">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="93.68" y="312.359063" transform="rotate(-0 93.68 312.359063)">0%</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_15">
+      <path d="M 103.68 260.897143  L 794.88 260.897143  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_16" />
+     <g id="text_9">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="93.68" y="265.456205" transform="rotate(-0 93.68 265.456205)">25%</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_17">
+      <path d="M 103.68 213.994286  L 794.88 213.994286  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_18" />
+     <g id="text_10">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="93.68" y="218.553348" transform="rotate(-0 93.68 218.553348)">50%</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_19">
+      <path d="M 103.68 167.091429  L 794.88 167.091429  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_20" />
+     <g id="text_11">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="93.68" y="171.650491" transform="rotate(-0 93.68 171.650491)">75%</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_21">
+      <path d="M 103.68 120.188571  L 794.88 120.188571  " clip-path="url(#p8b055e4110)" style="fill: none; stroke: #dfe7ed; stroke-width: 0.8; stroke-linecap: square" />
+     </g>
+     <g id="line2d_22" />
+     <g id="text_12">
+      <text style="fill: #142b40; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: end" x="93.68" y="124.747634" transform="rotate(-0 93.68 124.747634)">100%</text>
+     </g>
+    </g>
+    <g id="text_13">
+     <text style="fill: #536578; font: 12px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: middle" x="44.8775" y="209.304" transform="rotate(-90 44.8775 209.304)">Correct answers</text>
+    </g>
+   </g>
+   <g id="PathCollection_1">
+    <defs>
+     <path id="m3b7580a5a0" d="M 0 6.020797  C 1.596734 6.020797 3.128285 5.386408 4.257347 4.257347  C 5.386408 3.128285 6.020797 1.596734 6.020797 0  C 6.020797 -1.596734 5.386408 -3.128285 4.257347 -4.257347  C 3.128285 -5.386408 1.596734 -6.020797 0 -6.020797  C -1.596734 -6.020797 -3.128285 -5.386408 -4.257347 -4.257347  C -5.386408 -3.128285 -6.020797 -1.596734 -6.020797 0  C -6.020797 1.596734 -5.386408 3.128285 -4.257347 4.257347  C -3.128285 5.386408 -1.596734 6.020797 0 6.020797  z " style="stroke: #ffffff; stroke-width: 1.5" />
+    </defs>
+    <g clip-path="url(#p8b055e4110)">
+     <use xlink:href="#m3b7580a5a0" x="532.224" y="300.851429" style="fill: #bd4938; stroke: #ffffff; stroke-width: 1.5" />
+    </g>
+   </g>
+   <g id="text_14">
+    <text style="fill: #bd4938; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(482.883062 269.246179)">Cards</text>
+    <text style="fill: #bd4938; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(366.93275 281.563772)">score 0.62 · 1/27 correct</text>
+   </g>
+   <g id="PathCollection_2">
+    <defs>
+     <path id="mb72951f998" d="M 0 6.020797  C 1.596734 6.020797 3.128285 5.386408 4.257347 4.257347  C 5.386408 3.128285 6.020797 1.596734 6.020797 0  C 6.020797 -1.596734 5.386408 -3.128285 4.257347 -4.257347  C 3.128285 -5.386408 1.596734 -6.020797 0 -6.020797  C -1.596734 -6.020797 -3.128285 -5.386408 -4.257347 -4.257347  C -5.386408 -3.128285 -6.020797 -1.596734 -6.020797 0  C -6.020797 1.596734 -5.386408 3.128285 -4.257347 4.257347  C -3.128285 5.386408 -1.596734 6.020797 0 6.020797  z " style="stroke: #ffffff; stroke-width: 1.5" />
+    </defs>
+    <g clip-path="url(#p8b055e4110)">
+     <use xlink:href="#mb72951f998" x="304.128" y="134.085714" style="fill: #286ba2; stroke: #ffffff; stroke-width: 1.5" />
+    </g>
+   </g>
+   <g id="text_15">
+    <text style="fill: #286ba2; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(320.128 125.480464)">Table</text>
+    <text style="fill: #286ba2; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(320.128 137.798058)">score 0.29 · 25/27 correct</text>
+   </g>
+   <g id="PathCollection_3">
+    <defs>
+     <path id="m8fa663d2d5" d="M 0 6.020797  C 1.596734 6.020797 3.128285 5.386408 4.257347 4.257347  C 5.386408 3.128285 6.020797 1.596734 6.020797 0  C 6.020797 -1.596734 5.386408 -3.128285 4.257347 -4.257347  C 3.128285 -5.386408 1.596734 -6.020797 0 -6.020797  C -1.596734 -6.020797 -3.128285 -5.386408 -4.257347 -4.257347  C -5.386408 -3.128285 -6.020797 -1.596734 -6.020797 0  C -6.020797 1.596734 -5.386408 3.128285 -4.257347 4.257347  C -3.128285 5.386408 -1.596734 6.020797 0 6.020797  z " style="stroke: #ffffff; stroke-width: 1.5" />
+    </defs>
+    <g clip-path="url(#p8b055e4110)">
+     <use xlink:href="#m8fa663d2d5" x="628.992" y="127.137143" style="fill: #087d80; stroke: #ffffff; stroke-width: 1.5" />
+    </g>
+   </g>
+   <g id="text_16">
+    <text style="fill: #087d80; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(553.987156 163.531893)">Annotated</text>
+    <text style="fill: #087d80; font: 700 11px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif" transform="translate(460.047156 175.849487)">score 0.76 · 26/27 correct</text>
+   </g>
+  </g>
+  <g id="text_17">
+   <text style="fill: #142b40; font: 700 22px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="52.421362" transform="rotate(-0 60.48 52.421362)">Fixed judge score versus fixture accuracy</text>
+  </g>
+  <g id="text_18">
+   <text style="fill: #536578; font: 11.5px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="83.020603" transform="rotate(-0 60.48 83.020603)">One point per scored interface; means across the same scenarios and readers</text>
+  </g>
+  <g id="text_19">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="388.989919" transform="rotate(-0 60.48 388.989919)">Scores come from fixed feature weights, not preference votes. All readers are rule-based fixtures.</text>
+  </g>
+  <g id="text_20">
+   <text style="fill: #536578; font: 10.2px 'DejaVu Sans', 'Arial', 'Helvetica', sans-serif; text-anchor: start" x="60.48" y="371.342719" transform="rotate(-0 60.48 371.342719)">Cards receive a higher judge score than the table, with lower answer accuracy.</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p8b055e4110">
+   <rect x="103.68" y="110.808" width="691.2" height="196.992" />
+  </clipPath>
+ </defs>
+</svg>

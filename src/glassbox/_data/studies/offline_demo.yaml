@@ -1,0 +1,12 @@
+id: offline_demo
+description: 'Offline study: all scenarios, three simulated readers, and three test interfaces.'
+readers:
+- simulated
+scenarios: null
+interfaces:
+- cards
+- table
+- annotated
+replicates: 1
+judge: polish
+skip_render: true
